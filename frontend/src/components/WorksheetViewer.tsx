@@ -19,10 +19,10 @@ export default function WorksheetViewer({ worksheet, onPrint, onReset }: Props) 
   return (
     <div className="space-y-6">
       {/* Toolbar */}
-      <div className="no-print flex items-center justify-between bg-white rounded-2xl shadow-sm border border-slate-100 px-6 py-4">
+      <div className="no-print flex items-center justify-between bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 px-6 py-4">
         <button
           onClick={onReset}
-          className="flex items-center gap-2 text-sm text-slate-600 hover:text-blue-600 font-medium transition-colors"
+          className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 font-medium transition-colors"
         >
           ← Back
         </button>
@@ -36,10 +36,10 @@ export default function WorksheetViewer({ worksheet, onPrint, onReset }: Props) 
         </div>
       </div>
 
-      {/* Worksheet */}
-      <div className="print-area bg-white rounded-2xl shadow-lg border border-slate-100 overflow-hidden">
+      {/* Worksheet — always white for print readability */}
+      <div className="print-area bg-white dark:bg-slate-800 rounded-2xl shadow-lg border border-slate-100 dark:border-slate-700 overflow-hidden">
 
-        {/* Header */}
+        {/* Header — keep blue regardless of theme */}
         <div className="bg-blue-700 px-8 py-6">
           <h1 className="text-2xl font-bold text-white">{worksheet.title}</h1>
           <div className="flex flex-wrap gap-2 mt-3">
@@ -56,31 +56,31 @@ export default function WorksheetViewer({ worksheet, onPrint, onReset }: Props) 
         </div>
 
         {/* Instructions */}
-        <div className="mx-8 mt-6 bg-blue-50 border border-blue-200 rounded-xl px-5 py-4">
-          <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide mb-1">Instructions</p>
-          <p className="text-sm text-slate-700">{worksheet.instructions}</p>
+        <div className="mx-8 mt-6 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl px-5 py-4">
+          <p className="text-xs font-semibold text-blue-700 dark:text-blue-400 uppercase tracking-wide mb-1">Instructions</p>
+          <p className="text-sm text-slate-700 dark:text-slate-300">{worksheet.instructions}</p>
         </div>
 
         {/* Questions */}
         <div className="px-8 py-6 space-y-6">
-          <h2 className="text-sm font-bold text-blue-700 uppercase tracking-wider">Questions</h2>
+          <h2 className="text-sm font-bold text-blue-700 dark:text-blue-400 uppercase tracking-wider">Questions</h2>
 
           {worksheet.questions.map(q => (
-            <div key={q.number} className="flex gap-4 pb-6 border-b border-slate-100 last:border-0">
+            <div key={q.number} className="flex gap-4 pb-6 border-b border-slate-100 dark:border-slate-700 last:border-0">
               {/* Number badge */}
               <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-600 text-white text-sm font-bold flex items-center justify-center">
                 {q.number}
               </div>
 
               <div className="flex-1">
-                <p className="text-slate-800 font-medium leading-relaxed">{q.text}</p>
+                <p className="text-slate-800 dark:text-slate-100 font-medium leading-relaxed">{q.text}</p>
                 {q.hint && (
-                  <p className="text-xs text-slate-400 italic mt-1.5">💡 Hint: {q.hint}</p>
+                  <p className="text-xs text-slate-400 dark:text-slate-500 italic mt-1.5">💡 Hint: {q.hint}</p>
                 )}
                 {/* Answer lines */}
                 <div className="mt-4 space-y-2">
                   {[0, 1, 2].map(i => (
-                    <div key={i} className="h-px bg-slate-200 w-full" />
+                    <div key={i} className="h-px bg-slate-200 dark:bg-slate-600 w-full" />
                   ))}
                 </div>
               </div>
@@ -89,16 +89,16 @@ export default function WorksheetViewer({ worksheet, onPrint, onReset }: Props) 
         </div>
       </div>
 
-      {/* Answer Key — separate card */}
-      <div className="print-area bg-white rounded-2xl shadow-lg border border-slate-100 overflow-hidden">
+      {/* Answer Key */}
+      <div className="print-area bg-white dark:bg-slate-800 rounded-2xl shadow-lg border border-slate-100 dark:border-slate-700 overflow-hidden">
         <div className="bg-emerald-700 px-8 py-5">
           <h2 className="text-lg font-bold text-white">Answer Key</h2>
           <p className="text-emerald-200 text-sm">{worksheet.title}</p>
         </div>
         <div className="px-8 py-6 space-y-3">
           {worksheet.answerKey.map((answer, i) => (
-            <div key={i} className="bg-emerald-50 border border-emerald-200 rounded-xl px-5 py-3">
-              <p className="text-sm text-slate-700 whitespace-pre-wrap">{answer}</p>
+            <div key={i} className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl px-5 py-3">
+              <p className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap">{answer}</p>
             </div>
           ))}
         </div>
@@ -106,4 +106,3 @@ export default function WorksheetViewer({ worksheet, onPrint, onReset }: Props) 
     </div>
   );
 }
-

@@ -1,10 +1,13 @@
 import { useState } from 'react';
 import WorksheetForm from './components/WorksheetForm';
 import WorksheetViewer from './components/WorksheetViewer';
+import ThemeToggle from './components/ThemeToggle';
 import { generateWorksheet, downloadPdf } from './api/worksheetApi';
 import type { WorksheetRequest, WorksheetResponse } from './types/worksheet';
+import { useTheme } from './hooks/useTheme';
 
 export default function App() {
+  const { theme, setTheme } = useTheme();
   const [worksheet, setWorksheet] = useState<WorksheetResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
@@ -41,21 +44,24 @@ export default function App() {
   const handleReset = () => setWorksheet(null);
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <header className="no-print bg-white border-b border-slate-200 shadow-sm">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 transition-colors duration-200">
+      <header className="no-print bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 shadow-sm">
         <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center text-white text-base font-bold">
               M
             </div>
             <div>
-              <span className="font-bold text-slate-800 text-lg">MathAI</span>
-              <span className="ml-2 text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full font-medium">IB Curriculum</span>
+              <span className="font-bold text-slate-800 dark:text-slate-100 text-lg">MathAI</span>
+              <span className="ml-2 text-xs text-blue-600 bg-blue-50 dark:bg-blue-900/40 dark:text-blue-400 px-2 py-0.5 rounded-full font-medium">IB Curriculum</span>
             </div>
           </div>
-          <span className="text-sm text-slate-400 hidden sm:block">
-            AI-powered Math Worksheets for IB MYP &amp; DP
-          </span>
+          <div className="flex items-center gap-4">
+            <span className="text-sm text-slate-400 dark:text-slate-500 hidden sm:block">
+              AI-powered Math Worksheets for IB MYP &amp; DP
+            </span>
+            <ThemeToggle theme={theme} onChange={setTheme} />
+          </div>
         </div>
       </header>
 
@@ -63,18 +69,18 @@ export default function App() {
         {!worksheet ? (
           <div className="space-y-8">
             <div className="no-print text-center space-y-3">
-              <h1 className="text-3xl font-bold text-slate-800">
+              <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-100">
                 Generate IB Math Worksheets
-                <span className="text-blue-600"> Instantly</span>
+                <span className="text-blue-600 dark:text-blue-400"> Instantly</span>
               </h1>
-              <p className="text-slate-500 max-w-xl mx-auto">
+              <p className="text-slate-500 dark:text-slate-400 max-w-xl mx-auto">
                 AI-generated, curriculum-aligned practice worksheets for IB MYP (Grades 6-10)
                 and IB DP (Grades 11-12). Print or download as PDF in seconds.
               </p>
             </div>
 
             {error && (
-              <div className="bg-red-50 border border-red-200 rounded-xl px-5 py-4 text-sm text-red-700">
+              <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-xl px-5 py-4 text-sm text-red-700 dark:text-red-400">
                 {error}
               </div>
             )}
@@ -94,7 +100,7 @@ export default function App() {
                 'Hints included',
                 'Answer key included',
               ].map(f => (
-                <span key={f} className="text-xs text-slate-500 bg-white border border-slate-200 px-3 py-1.5 rounded-full shadow-sm">
+                <span key={f} className="text-xs text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-1.5 rounded-full shadow-sm">
                   {f}
                 </span>
               ))}
@@ -103,7 +109,7 @@ export default function App() {
         ) : (
           <>
             {error && (
-              <div className="no-print mb-4 bg-red-50 border border-red-200 rounded-xl px-5 py-4 text-sm text-red-700">
+              <div className="no-print mb-4 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-xl px-5 py-4 text-sm text-red-700 dark:text-red-400">
                 {error}
               </div>
             )}
@@ -116,7 +122,7 @@ export default function App() {
         )}
       </main>
 
-      <footer className="no-print text-center py-8 text-xs text-slate-400">
+      <footer className="no-print text-center py-8 text-xs text-slate-400 dark:text-slate-600">
         MathAI &mdash; AI-powered IB Math Worksheets
       </footer>
     </div>

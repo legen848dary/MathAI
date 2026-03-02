@@ -1,11 +1,20 @@
 @import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
 @layer base {
   body {
     @apply bg-slate-50 text-slate-800 antialiased;
     margin: 0;
     font-family: system-ui, -apple-system, sans-serif;
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+
+  .dark body {
+    @apply bg-slate-900 text-slate-100;
   }
 }
+
 /* Print styles — hides UI chrome when printing */
 @media print {
   .no-print {
@@ -17,5 +26,6 @@
   }
   body {
     background: white !important;
+    color: black !important;
   }
 }

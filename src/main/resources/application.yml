@@ -1,9 +1,14 @@
 server:
   port: 8080
+  error:
+    include-message: always
+    include-binding-errors: always
+    include-stacktrace: on_param
 
 gemini:
   api:
     key: ${GEMINI_API_KEY}
+    model: ${GEMINI_MODEL:gemini-2.5-flash}
 
 spring:
   application:
@@ -13,5 +18,11 @@ spring:
 
 logging:
   level:
-    com.insoftu.mathai: INFO
+    com.insoftu.mathai: DEBUG
+    org.springframework.web: INFO
+  file:
+    name: logs/mathai.log
+  pattern:
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    console: "%d{HH:mm:ss} %-5level %logger{36} - %msg%n"
 

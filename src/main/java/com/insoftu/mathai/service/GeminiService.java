@@ -8,6 +8,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
 
 import java.util.ArrayList;
@@ -24,7 +25,8 @@ public class GeminiService {
     @Value("${gemini.api.key}")
     private String apiKey;
 
-    private static final String MODEL = "gemini-2.0-flash";
+    @Value("${gemini.api.model:gemini-2.5-flash}")
+    private String model;
 
     public GeminiService(RestClient restClient, ObjectMapper objectMapper) {
         this.restClient = restClient;
@@ -85,17 +87,32 @@ public class GeminiService {
                 )
         );
 
-        String url = "/v1beta/models/" + MODEL + ":generateContent?key=" + apiKey;
+        String url = "/v1beta/models/" + model + ":generateContent?key=" + apiKey;
 
-        String response = restClient.post()
-                .uri(url)
-                .header("Content-Type", "application/json")
-                .body(requestBody)
-                .retrieve()
-                .body(String.class);
+        try {
+            String response = restClient.post()
+                    .uri(url)
+                    .header("Content-Type", "application/json")
+                    .body(requestBody)
+                    .retrieve()
+                    .body(String.class);
 
-        log.debug("Gemini raw response: {}", response);
-        return extractTextFromGeminiResponse(response);
+            log.debug("Gemini raw response: {}", response);
+            return extractTextFromGeminiResponse(response);
+        } catch (HttpClientErrorException e) {
+            String body = e.getResponseBodyAsString();
+            log.error("Gemini API error {}: {}", e.getStatusCode(), body);
+            if (e.getStatusCode().value() == 429) {
+                throw new RuntimeException(
+                    "Gemini API quota exceeded. Please wait a moment and try again, " +
+                    "or check your quota at https://ai.google.dev/gemini-api/docs/rate-limits");
+            } else if (e.getStatusCode().value() == 401 || e.getStatusCode().value() == 403) {
+                throw new RuntimeException(
+                    "Gemini API key is invalid or unauthorized. " +
+                    "Please check your GEMINI_API_KEY at https://aistudio.google.com");
+            }
+            throw new RuntimeException("Gemini API error " + e.getStatusCode() + ": " + body);
+        }
     }
 
     private String extractTextFromGeminiResponse(String response) {

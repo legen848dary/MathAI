@@ -1,0 +1,17 @@
+server:
+  port: 8080
+
+gemini:
+  api:
+    key: ${GEMINI_API_KEY}
+
+spring:
+  application:
+    name: MathAI
+  jackson:
+    default-property-inclusion: non_null
+
+logging:
+  level:
+    com.insoftu.mathai: INFO
+

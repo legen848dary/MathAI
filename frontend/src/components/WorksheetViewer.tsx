@@ -1,0 +1,109 @@
+import type { WorksheetResponse } from '../types/worksheet';
+
+interface Props {
+  worksheet: WorksheetResponse;
+  onPrint: () => void;
+  onReset: () => void;
+}
+
+const difficultyBadge = (d: string) => {
+  const map: Record<string, string> = {
+    Easy: 'bg-green-100 text-green-700',
+    Medium: 'bg-amber-100 text-amber-700',
+    Hard: 'bg-red-100 text-red-700',
+  };
+  return map[d] ?? 'bg-slate-100 text-slate-600';
+};
+
+export default function WorksheetViewer({ worksheet, onPrint, onReset }: Props) {
+  return (
+    <div className="space-y-6">
+      {/* Toolbar */}
+      <div className="no-print flex items-center justify-between bg-white rounded-2xl shadow-sm border border-slate-100 px-6 py-4">
+        <button
+          onClick={onReset}
+          className="flex items-center gap-2 text-sm text-slate-600 hover:text-blue-600 font-medium transition-colors"
+        >
+          ← Back
+        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={onPrint}
+            className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition-colors flex items-center gap-2"
+          >
+            🖨 Print / Save as PDF
+          </button>
+        </div>
+      </div>
+
+      {/* Worksheet */}
+      <div className="print-area bg-white rounded-2xl shadow-lg border border-slate-100 overflow-hidden">
+
+        {/* Header */}
+        <div className="bg-blue-700 px-8 py-6">
+          <h1 className="text-2xl font-bold text-white">{worksheet.title}</h1>
+          <div className="flex flex-wrap gap-2 mt-3">
+            <span className="bg-blue-600 text-blue-100 text-xs font-medium px-3 py-1 rounded-full">
+              {worksheet.grade}
+            </span>
+            <span className="bg-blue-600 text-blue-100 text-xs font-medium px-3 py-1 rounded-full">
+              {worksheet.topic}
+            </span>
+            <span className={`text-xs font-medium px-3 py-1 rounded-full ${difficultyBadge(worksheet.difficulty)}`}>
+              {worksheet.difficulty}
+            </span>
+          </div>
+        </div>
+
+        {/* Instructions */}
+        <div className="mx-8 mt-6 bg-blue-50 border border-blue-200 rounded-xl px-5 py-4">
+          <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide mb-1">Instructions</p>
+          <p className="text-sm text-slate-700">{worksheet.instructions}</p>
+        </div>
+
+        {/* Questions */}
+        <div className="px-8 py-6 space-y-6">
+          <h2 className="text-sm font-bold text-blue-700 uppercase tracking-wider">Questions</h2>
+
+          {worksheet.questions.map(q => (
+            <div key={q.number} className="flex gap-4 pb-6 border-b border-slate-100 last:border-0">
+              {/* Number badge */}
+              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-600 text-white text-sm font-bold flex items-center justify-center">
+                {q.number}
+              </div>
+
+              <div className="flex-1">
+                <p className="text-slate-800 font-medium leading-relaxed">{q.text}</p>
+                {q.hint && (
+                  <p className="text-xs text-slate-400 italic mt-1.5">💡 Hint: {q.hint}</p>
+                )}
+                {/* Answer lines */}
+                <div className="mt-4 space-y-2">
+                  {[0, 1, 2].map(i => (
+                    <div key={i} className="h-px bg-slate-200 w-full" />
+                  ))}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Answer Key — separate card */}
+      <div className="print-area bg-white rounded-2xl shadow-lg border border-slate-100 overflow-hidden">
+        <div className="bg-emerald-700 px-8 py-5">
+          <h2 className="text-lg font-bold text-white">Answer Key</h2>
+          <p className="text-emerald-200 text-sm">{worksheet.title}</p>
+        </div>
+        <div className="px-8 py-6 space-y-3">
+          {worksheet.answerKey.map((answer, i) => (
+            <div key={i} className="bg-emerald-50 border border-emerald-200 rounded-xl px-5 py-3">
+              <p className="text-sm text-slate-700 whitespace-pre-wrap">{answer}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+

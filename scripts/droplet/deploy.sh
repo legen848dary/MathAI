@@ -9,66 +9,100 @@ REPO="https://github.com/legen848dary/MathAI.git"
 echo "======================================"
 echo "  MathAI — Deploy to Droplet"
 echo "======================================"
+echo ""
 
-# ── Install Docker if missing ─────────────────────────────────────────────────
+# ── Install Docker (Ubuntu 24 / Debian method) ────────────────────────────────
 if ! command -v docker &>/dev/null; then
-  echo "Installing Docker..."
+  echo ">>> Installing Docker..."
   apt-get update -qq
-  apt-get install -y docker.io curl git
+  apt-get install -y ca-certificates curl gnupg lsb-release git
+
+  # Official Docker apt repo
+  install -m 0755 -d /etc/apt/keyrings
+  curl -fsSL https://download.docker.com/linux/ubuntu/gpg \
+    | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+  chmod a+r /etc/apt/keyrings/docker.gpg
+
+  echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
+    https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" \
+    > /etc/apt/sources.list.d/docker.list
+
+  apt-get update -qq
+  apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+
   systemctl enable docker
   systemctl start docker
-  echo "Docker installed."
+  echo ">>> Docker installed: $(docker --version)"
+else
+  echo ">>> Docker already installed: $(docker --version)"
 fi
 
-# ── Install Docker Compose plugin if missing ─────────────────────────────────
+# ── Verify Docker Compose ─────────────────────────────────────────────────────
 if ! docker compose version &>/dev/null 2>&1; then
-  echo "Installing Docker Compose plugin..."
-  mkdir -p /usr/local/lib/docker/cli-plugins
-  curl -SL https://github.com/docker/compose/releases/download/v2.27.0/docker-compose-linux-x86_64 \
-    -o /usr/local/lib/docker/cli-plugins/docker-compose
-  chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
-  echo "Docker Compose installed."
+  echo ">>> Installing Docker Compose plugin..."
+  apt-get install -y docker-compose-plugin
 fi
+echo ">>> Docker Compose: $(docker compose version)"
+echo ""
 
-# ── Clone or pull repo ───────────────────────────────────────────────────────
+# ── Clone or pull repo ────────────────────────────────────────────────────────
 if [[ -d "$APP_DIR/.git" ]]; then
-  echo "Pulling latest code..."
+  echo ">>> Pulling latest code from GitHub..."
   cd "$APP_DIR"
   git pull
 else
-  echo "Cloning repo to $APP_DIR..."
+  echo ">>> Cloning repo to $APP_DIR..."
   mkdir -p "$APP_DIR"
   git clone "$REPO" "$APP_DIR"
   cd "$APP_DIR"
 fi
-
-# ── Ensure .env exists ───────────────────────────────────────────────────────
-if [[ ! -f "$APP_DIR/.env" ]]; then
-  echo ""
-  echo "ERROR: No .env file found at $APP_DIR/.env"
-  echo ""
-  echo "Create it now:"
-  echo "  echo 'GEMINI_API_KEY=your_key_here' > $APP_DIR/.env"
-  echo ""
-  echo "Then rerun: bash $APP_DIR/scripts/droplet/deploy.sh"
-  exit 1
-fi
-
-# ── Build and start ──────────────────────────────────────────────────────────
 echo ""
-echo "Building and starting containers (2-3 min on first run)..."
+
+# ── Ensure .env exists ────────────────────────────────────────────────────────
+if [[ ! -f "$APP_DIR/.env" ]]; then
+  echo ">>> No .env file found. Creating one now..."
+  echo ""
+  read -rp "  Enter your GEMINI_API_KEY: " GEMINI_API_KEY
+  if [[ -z "$GEMINI_API_KEY" ]]; then
+    echo "ERROR: GEMINI_API_KEY cannot be empty."
+    exit 1
+  fi
+  echo "GEMINI_API_KEY=${GEMINI_API_KEY}" > "$APP_DIR/.env"
+  echo "GEMINI_MODEL=gemini-2.5-flash"   >> "$APP_DIR/.env"
+  echo ">>> .env created."
+else
+  echo ">>> .env file found."
+fi
+echo ""
+
+# ── Build and start ───────────────────────────────────────────────────────────
+echo ">>> Building and starting containers..."
+echo "    (First build takes 3-5 minutes — subsequent deploys are faster)"
+echo ""
+cd "$APP_DIR"
 docker compose up -d --build
+
+# ── Wait and verify ───────────────────────────────────────────────────────────
+echo ""
+echo ">>> Waiting for backend to be healthy..."
+for i in {1..24}; do
+  if docker compose ps backend | grep -q "healthy"; then
+    break
+  fi
+  printf "."
+  sleep 5
+done
+echo ""
 
 echo ""
 echo "======================================"
 echo "  Deployment complete!"
 echo ""
-IP=$(curl -s --max-time 3 ifconfig.me 2>/dev/null || echo "YOUR_DROPLET_IP")
-echo "  App  -> http://$IP"
-echo "  API  -> http://$IP/api/topics?grade=6"
+IP=$(curl -s --max-time 5 ifconfig.me 2>/dev/null || hostname -I | awk '{print $1}')
+echo "  App  ->  http://$IP"
+echo "  API  ->  http://$IP/api/topics?grade=6"
 echo ""
-echo "  Logs:     bash $APP_DIR/scripts/droplet/logs.sh"
-echo "  Stop:     bash $APP_DIR/scripts/droplet/stop.sh"
-echo "  Update:   bash $APP_DIR/scripts/droplet/update.sh"
+echo "  View logs:   bash $APP_DIR/scripts/droplet/logs.sh"
+echo "  Stop:        bash $APP_DIR/scripts/droplet/stop.sh"
+echo "  Update:      bash $APP_DIR/scripts/droplet/update.sh"
 echo "======================================"
-

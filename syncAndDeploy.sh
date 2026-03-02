@@ -48,11 +48,13 @@ fi
 
 # Push (handles 'already up to date' gracefully)
 echo "  Pushing to origin/main..."
-PUSH_OUT=$(git push origin main 2>&1) || {
-  # If push fails just warn — rsync will still sync latest local code
-  warn "  Git push failed or skipped: $PUSH_OUT"
-  warn "  Continuing with rsync of local files..."
-}
+if GIT_TERMINAL_PROMPT=0 git push origin main 2>/dev/null; then
+  success "  Pushed to GitHub."
+else
+  warn "  GitHub push skipped (no cached credentials in this session)."
+  warn "  To fix: run 'git push origin main' manually once, or set up SSH remote:"
+  warn "    git remote set-url origin git@github.com:legen848dary/MathAI.git"
+fi
 success "  Git step done."
 echo ""
 

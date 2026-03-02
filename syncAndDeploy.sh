@@ -46,14 +46,13 @@ else
   success "  Committed: $COMMIT_MSG"
 fi
 
-# Push (handles 'already up to date' gracefully)
+# Push
 echo "  Pushing to origin/main..."
-if GIT_TERMINAL_PROMPT=0 git push origin main 2>/dev/null; then
+if git push origin main 2>&1; then
   success "  Pushed to GitHub."
 else
-  warn "  GitHub push skipped (no cached credentials in this session)."
-  warn "  To fix: run 'git push origin main' manually once, or set up SSH remote:"
-  warn "    git remote set-url origin git@github.com:legen848dary/MathAI.git"
+  warn "  Git push failed — check SSH key: ssh -T git@github.com"
+  warn "  Continuing with rsync of local files..."
 fi
 success "  Git step done."
 echo ""

@@ -130,6 +130,25 @@ export default function WorksheetForm({ onGenerate, onDownloadPdf, loading, pdfL
         </div>
       </div>
 
+      {/* Optional context / focus keywords */}
+      <div className="mt-5">
+        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+          Focus Keywords&nbsp;
+          <span className="text-xs font-normal text-slate-400 dark:text-slate-500">(optional)</span>
+        </label>
+        <textarea
+          value={context}
+          onChange={e => setContext(e.target.value)}
+          disabled={anyLoading}
+          rows={2}
+          placeholder="e.g. real-world problems, Pythagoras theorem, right-angled triangles, word problems…"
+          className="w-full rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 px-3 py-2.5 text-sm text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 resize-none"
+        />
+        <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
+          Add keywords to guide the AI — specific concepts, real-world scenarios, or topics to emphasise.
+        </p>
+      </div>
+
       {/* Action Buttons */}
       <div className="flex gap-3 mt-8">
         <button

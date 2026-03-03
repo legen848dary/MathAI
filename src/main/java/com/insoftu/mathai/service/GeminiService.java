@@ -43,7 +43,7 @@ public class GeminiService {
             log.warn("Gemini response was truncated (MAX_TOKENS). Retrying with {} questions instead of {}.",
                     reducedCount, request.questionCount());
             WorksheetRequest reduced = new WorksheetRequest(
-                    request.grade(), request.topic(), request.difficulty(), reducedCount);
+                    request.grade(), request.topic(), request.difficulty(), reducedCount, request.context());
             result = callGemini(buildPrompt(reduced));
             if (result.truncated()) {
                 throw new RuntimeException(
@@ -56,6 +56,10 @@ public class GeminiService {
     }
 
     private String buildPrompt(WorksheetRequest request) {
+        String contextLine = (request.context() != null && !request.context().isBlank())
+                ? "- Additional context / focus keywords from the teacher: " + request.context().strip()
+                : "";
+
         return """
                 You are an IB mathematics teacher. Generate a worksheet as a single valid JSON object.
 
@@ -64,11 +68,13 @@ public class GeminiService {
                 - Topic: %s
                 - Difficulty: %s
                 - Questions: %d
+                %s
 
                 Rules:
                 - Questions must align to IB MYP/DP standards and progress from easier to harder.
                 - Use plain-text math notation (x^2, sqrt(x), pi, etc.).
                 - Keep each answer concise: show key steps only, not an essay.
+                - If additional context/keywords are provided above, tailor the questions to reflect them.
                 - Respond with RAW JSON only — no markdown, no code fences.
 
                 DIAGRAMS:
@@ -97,7 +103,8 @@ public class GeminiService {
                         request.grade(),
                         request.topic(),
                         request.difficulty(),
-                        request.questionCount());
+                        request.questionCount(),
+                        contextLine);
     }
 
     private record GeminiResult(String text, boolean truncated) {}

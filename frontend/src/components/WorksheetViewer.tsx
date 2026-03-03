@@ -77,10 +77,20 @@ export default function WorksheetViewer({ worksheet, onPrint, onReset }: Props) 
 
                 {/* SVG diagram — rendered when Gemini provides one */}
                 {q.diagram && (
-                  <div className="mt-4 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/40 p-3 overflow-x-auto">
-                    <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide mb-2">Diagram</p>
+                  <div className="mt-4 rounded-xl border border-slate-200 dark:border-slate-500 bg-white dark:bg-slate-800 p-3 overflow-x-auto">
+                    <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-400 uppercase tracking-wide mb-2">Diagram</p>
                     <div
-                      className="[&_text]:fill-slate-700 dark:[&_text]:fill-slate-200 [&_svg]:max-w-full"
+                      className="
+                        [&_svg]:max-w-full
+                        [&_svg_text]:fill-slate-800          dark:[&_svg_text]:fill-slate-100
+                        [&_svg_line]:stroke-slate-700        dark:[&_svg_line]:stroke-slate-200
+                        [&_svg_polyline]:stroke-slate-700    dark:[&_svg_polyline]:stroke-slate-200
+                        [&_svg_polygon]:stroke-slate-700     dark:[&_svg_polygon]:stroke-slate-200
+                        [&_svg_path]:stroke-slate-700        dark:[&_svg_path]:stroke-slate-200
+                        [&_svg_circle]:stroke-slate-700      dark:[&_svg_circle]:stroke-slate-200
+                        [&_svg_rect]:stroke-slate-700        dark:[&_svg_rect]:stroke-slate-200
+                        [&_svg_ellipse]:stroke-slate-700     dark:[&_svg_ellipse]:stroke-slate-200
+                      "
                       dangerouslySetInnerHTML={{ __html: q.diagram }}
                     />
                   </div>

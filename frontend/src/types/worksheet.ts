@@ -20,6 +20,7 @@ export interface WorksheetRequest {
   topic: string;
   difficulty: string;
   questionCount: number;
+  context?: string;   // optional free-text keywords / focus area
 }
 
 export type Difficulty = 'Easy' | 'Medium' | 'Hard';

@@ -95,6 +95,9 @@ cd /opt/mathai
 # Ensure log directory exists on the host
 mkdir -p /root/logs
 
+echo "  >>> docker compose down --remove-orphans"
+docker compose down --remove-orphans
+
 echo "  >>> docker compose up -d --build"
 docker compose up -d --build
 

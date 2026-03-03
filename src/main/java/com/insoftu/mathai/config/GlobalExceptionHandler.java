@@ -6,6 +6,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.time.Instant;
 import java.util.Map;
@@ -15,6 +16,24 @@ public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
+    /**
+     * 404 — unknown paths (bot probes, typos, etc.).
+     * Logged at WARN (no stack trace) to avoid polluting error logs.
+     */
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleNotFound(NoResourceFoundException ex) {
+        log.warn("404 Not Found: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
+                "status", 404,
+                "error", "Not Found",
+                "message", ex.getMessage() != null ? ex.getMessage() : "Resource not found",
+                "timestamp", Instant.now().toString()
+        ));
+    }
+
+    /**
+     * Catch-all for genuine application errors.
+     */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleAll(Exception ex) {
         log.error("Unhandled exception: {}", ex.getMessage(), ex);

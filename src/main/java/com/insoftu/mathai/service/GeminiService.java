@@ -35,55 +35,71 @@ public class GeminiService {
 
     public WorksheetResponse generateWorksheet(WorksheetRequest request) {
         String prompt = buildPrompt(request);
-        String rawJson = callGemini(prompt);
-        return parseResponse(rawJson, request);
+        GeminiResult result = callGemini(prompt);
+
+        // If Gemini hit the token limit, retry once with fewer questions
+        if (result.truncated()) {
+            int reducedCount = Math.max(3, request.questionCount() - 2);
+            log.warn("Gemini response was truncated (MAX_TOKENS). Retrying with {} questions instead of {}.",
+                    reducedCount, request.questionCount());
+            WorksheetRequest reduced = new WorksheetRequest(
+                    request.grade(), request.topic(), request.difficulty(), reducedCount);
+            result = callGemini(buildPrompt(reduced));
+            if (result.truncated()) {
+                throw new RuntimeException(
+                    "Gemini response was truncated even after reducing question count. " +
+                    "Please try again with fewer questions or a simpler topic.");
+            }
+        }
+
+        return parseResponse(result.text(), request);
     }
 
     private String buildPrompt(WorksheetRequest request) {
         return """
-                You are an expert IB (International Baccalaureate) mathematics teacher creating high-quality worksheets.
+                You are an IB mathematics teacher. Generate a worksheet as a single valid JSON object.
                 
-                Generate a math worksheet with the following specifications:
-                - IB Curriculum: MYP (Middle Years Programme) for grades 6-10, DP (Diploma Programme) for grades 11-12
-                - Grade: %d
+                Specs:
+                - Programme: %s (grade %d)
                 - Topic: %s
                 - Difficulty: %s
-                - Number of questions: %d
+                - Questions: %d
                 
-                IMPORTANT RULES:
-                1. Questions must be age-appropriate and aligned to IB MYP/DP mathematics standards
-                2. Questions should progress from easier to harder within the difficulty level
-                3. Each question must be clear, unambiguous, and solvable
-                4. Provide a brief hint for each question (not the answer)
-                5. Provide complete, worked answers in the answer key
-                6. Use proper mathematical notation written in plain text (e.g., x^2 for x squared, sqrt(x) for square root)
+                Rules:
+                - Questions must align to IB MYP/DP standards and progress from easier to harder.
+                - Use plain-text math notation (x^2, sqrt(x), pi, etc.).
+                - Keep each answer concise: show key steps only, not an essay.
+                - Respond with RAW JSON only — no markdown, no code fences.
                 
-                Respond ONLY with a valid JSON object in this exact format, no markdown, no code blocks, just raw JSON:
+                Required JSON format:
                 {
-                  "title": "worksheet title",
-                  "instructions": "brief instructions for the student",
+                  "title": "string",
+                  "instructions": "string",
                   "questions": [
-                    {
-                      "number": 1,
-                      "text": "question text here",
-                      "hint": "hint text here"
-                    }
+                    { "number": 1, "text": "string", "hint": "string" }
                   ],
                   "answerKey": [
-                    "1. full worked answer here"
+                    "1. concise worked answer"
                   ]
                 }
-                """.formatted(request.grade(), request.topic(), request.difficulty(), request.questionCount());
+                """.formatted(
+                        request.grade() >= 11 ? "DP" : "MYP",
+                        request.grade(),
+                        request.topic(),
+                        request.difficulty(),
+                        request.questionCount());
     }
 
-    private String callGemini(String prompt) {
+    private record GeminiResult(String text, boolean truncated) {}
+
+    private GeminiResult callGemini(String prompt) {
         Map<String, Object> requestBody = Map.of(
                 "contents", List.of(
                         Map.of("parts", List.of(Map.of("text", prompt)))
                 ),
                 "generationConfig", Map.of(
                         "temperature", 0.7,
-                        "maxOutputTokens", 4096
+                        "maxOutputTokens", 8192
                 )
         );
 
@@ -98,7 +114,19 @@ public class GeminiService {
                     .body(String.class);
 
             log.debug("Gemini raw response: {}", response);
-            return extractTextFromGeminiResponse(response);
+
+            // Check if Gemini stopped due to token limit
+            boolean truncated = false;
+            try {
+                JsonNode root = objectMapper.readTree(response);
+                String finishReason = root.path("candidates").get(0).path("finishReason").asText("");
+                if ("MAX_TOKENS".equals(finishReason)) {
+                    truncated = true;
+                    log.warn("Gemini finishReason=MAX_TOKENS — response was cut off.");
+                }
+            } catch (Exception ignored) {}
+
+            return new GeminiResult(extractTextFromGeminiResponse(response), truncated);
         } catch (HttpClientErrorException e) {
             String body = e.getResponseBodyAsString();
             log.error("Gemini API error {}: {}", e.getStatusCode(), body);

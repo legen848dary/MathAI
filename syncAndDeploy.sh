@@ -92,6 +92,9 @@ ssh -o StrictHostKeyChecking=no "${DROPLET_USER}@${DROPLET_IP}" bash << 'REMOTE'
 set -e
 cd /opt/mathai
 
+# Ensure log directory exists on the host
+mkdir -p /root/logs
+
 echo "  >>> docker compose up -d --build"
 docker compose up -d --build
 

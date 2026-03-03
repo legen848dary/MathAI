@@ -21,7 +21,7 @@ logging:
     com.insoftu.mathai: DEBUG
     org.springframework.web: INFO
   file:
-    name: logs/mathai.log
+    name: /app/logs/mathai.log
   pattern:
     file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
     console: "%d{HH:mm:ss} %-5level %logger{36} - %msg%n"

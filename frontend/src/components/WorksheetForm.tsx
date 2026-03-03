@@ -18,6 +18,7 @@ export default function WorksheetForm({ onGenerate, onDownloadPdf, loading, pdfL
   const [topic, setTopic] = useState<string>('');
   const [difficulty, setDifficulty] = useState<Difficulty>('Medium');
   const [questionCount, setQuestionCount] = useState<number>(10);
+  const [context, setContext] = useState<string>('');
   const [topics, setTopics] = useState<string[]>([]);
   const [topicsLoading, setTopicsLoading] = useState(false);
 
@@ -31,7 +32,7 @@ export default function WorksheetForm({ onGenerate, onDownloadPdf, loading, pdfL
       .finally(() => setTopicsLoading(false));
   }, [grade]);
 
-  const buildRequest = (): WorksheetRequest => ({ grade, topic, difficulty, questionCount });
+  const buildRequest = (): WorksheetRequest => ({ grade, topic, difficulty, questionCount, context: context.trim() || undefined });
 
   const anyLoading = loading || pdfLoading || topicsLoading;
 

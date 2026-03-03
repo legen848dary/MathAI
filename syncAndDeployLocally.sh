@@ -37,18 +37,21 @@ case "${1:-start}" in
 
   stop)
     info "Stopping local containers…"
+    export LOG_DIR="$SCRIPT_DIR/logs"
     docker compose down --remove-orphans
     success "Stopped."
     exit 0
     ;;
 
   logs)
+    export LOG_DIR="$SCRIPT_DIR/logs"
     docker compose logs -f
     exit 0
     ;;
 
   restart)
     info "Restarting…"
+    export LOG_DIR="$SCRIPT_DIR/logs"
     docker compose down --remove-orphans
     ;;
 
@@ -71,9 +74,12 @@ echo ""
 info "Building & starting containers (this may take a few minutes on first run)…"
 echo ""
 
-GEMINI_API_KEY="$GEMINI_API_KEY" \
-GEMINI_MODEL="${GEMINI_MODEL:-gemini-2.5-flash}" \
-docker compose up -d --build
+export LOG_DIR="$SCRIPT_DIR/logs"
+export GEMINI_API_KEY="$GEMINI_API_KEY"
+export GEMINI_MODEL="${GEMINI_MODEL:-gemini-2.5-flash}"
+
+docker compose build --no-cache
+docker compose up -d
 
 echo ""
 info "Waiting for backend to be healthy…"

@@ -9,7 +9,7 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      - /root/logs:/app/logs
+      - "${LOG_DIR:-./logs}:/app/logs"
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8080/api/topics?grade=6"]
@@ -23,9 +23,9 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     ports:
-      - "127.0.0.1:8081:80"
+      - "8081:80"
     volumes:
-      - /root/logs:/app/logs
+      - "${LOG_DIR:-./logs}:/app/logs"
     depends_on:
       backend:
         condition: service_healthy

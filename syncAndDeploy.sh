@@ -94,6 +94,7 @@ cd /opt/mathai
 
 # Ensure log directory exists on the host
 mkdir -p /root/logs
+export LOG_DIR=/root/logs
 
 echo "  >>> docker compose down --remove-orphans"
 docker compose down --remove-orphans

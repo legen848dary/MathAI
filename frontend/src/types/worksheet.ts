@@ -2,6 +2,7 @@ export interface Question {
   number: number;
   text: string;
   hint?: string;
+  diagram?: string;   // inline SVG string, present only when a visual aid was generated
 }
 
 export interface WorksheetResponse {

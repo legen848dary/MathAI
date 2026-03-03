@@ -74,6 +74,18 @@ export default function WorksheetViewer({ worksheet, onPrint, onReset }: Props) 
 
               <div className="flex-1">
                 <p className="text-slate-800 dark:text-slate-100 font-medium leading-relaxed">{q.text}</p>
+
+                {/* SVG diagram — rendered when Gemini provides one */}
+                {q.diagram && (
+                  <div className="mt-4 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/40 p-3 overflow-x-auto">
+                    <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide mb-2">Diagram</p>
+                    <div
+                      className="[&_text]:fill-slate-700 dark:[&_text]:fill-slate-200 [&_svg]:max-w-full"
+                      dangerouslySetInnerHTML={{ __html: q.diagram }}
+                    />
+                  </div>
+                )}
+
                 {q.hint && (
                   <p className="text-xs text-slate-400 dark:text-slate-500 italic mt-1.5">💡 Hint: {q.hint}</p>
                 )}

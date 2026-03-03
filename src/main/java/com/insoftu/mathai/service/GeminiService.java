@@ -58,25 +58,35 @@ public class GeminiService {
     private String buildPrompt(WorksheetRequest request) {
         return """
                 You are an IB mathematics teacher. Generate a worksheet as a single valid JSON object.
-                
+
                 Specs:
                 - Programme: %s (grade %d)
                 - Topic: %s
                 - Difficulty: %s
                 - Questions: %d
-                
+
                 Rules:
                 - Questions must align to IB MYP/DP standards and progress from easier to harder.
                 - Use plain-text math notation (x^2, sqrt(x), pi, etc.).
                 - Keep each answer concise: show key steps only, not an essay.
                 - Respond with RAW JSON only — no markdown, no code fences.
-                
+
+                DIAGRAMS:
+                - For any question that involves geometry, shapes, graphs, coordinate planes, angles,
+                  number lines, or any concept that is clearer with a visual aid, you MUST include a
+                  diagram as a self-contained inline SVG string in the "diagram" field.
+                - The SVG must have width="300" height="220" and use only basic SVG elements
+                  (line, circle, rect, polygon, polyline, path, text, g).
+                - Use stroke="#1e3a5f" fill="none" for lines/shapes, fill="#1e3a5f" for text labels.
+                - The SVG must be a single-line string (no real newlines inside the JSON value).
+                - If no diagram is needed for a question, omit the "diagram" field entirely.
+
                 Required JSON format:
                 {
                   "title": "string",
                   "instructions": "string",
                   "questions": [
-                    { "number": 1, "text": "string", "hint": "string" }
+                    { "number": 1, "text": "string", "hint": "string", "diagram": "<svg ...>...</svg>" }
                   ],
                   "answerKey": [
                     "1. concise worked answer"
@@ -174,10 +184,12 @@ public class GeminiService {
             List<WorksheetResponse.Question> questions = new ArrayList<>();
             JsonNode questionsNode = node.path("questions");
             for (JsonNode q : questionsNode) {
+                String diagram = q.hasNonNull("diagram") ? q.path("diagram").asText(null) : null;
                 questions.add(new WorksheetResponse.Question(
                         q.path("number").asInt(questions.size() + 1),
                         q.path("text").asText(),
-                        q.path("hint").asText("")
+                        q.path("hint").asText(""),
+                        diagram
                 ));
             }
 

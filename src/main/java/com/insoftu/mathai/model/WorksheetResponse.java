@@ -14,7 +14,8 @@ public record WorksheetResponse(
     public record Question(
             int number,
             String text,
-            String hint
+            String hint,
+            String diagram   // optional inline SVG string; null if no diagram needed
     ) {}
 }
 

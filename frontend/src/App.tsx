@@ -86,8 +86,8 @@ export default function App() {
               </div>
             )}
 
-            {loading ? (
-              <GeneratingProgress />
+            {(loading || pdfLoading) ? (
+              <GeneratingProgress mode={pdfLoading ? 'pdf' : 'generate'} />
             ) : (
               <WorksheetForm
                 onGenerate={handleGenerate}
@@ -97,7 +97,7 @@ export default function App() {
               />
             )}
 
-            {!loading && (
+            {!loading && !pdfLoading && (
               <div className="no-print flex flex-wrap justify-center gap-3 pt-2">
                 {[
                   'IB MYP and DP aligned',

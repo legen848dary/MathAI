@@ -28,11 +28,21 @@ export async function generateWorksheet(req: WorksheetRequest): Promise<Workshee
 export async function downloadPdf(req: WorksheetRequest): Promise<void> {
   try {
     const res = await axios.post(`${BASE}/worksheet/pdf`, req, { responseType: 'blob' });
+
+    // Prefer the filename the backend sets in Content-Disposition (includes timestamp).
+    // Fall back to a client-generated name only if the header is absent.
+    const disposition: string = res.headers['content-disposition'] ?? '';
+    const match = disposition.match(/filename="([^"]+)"/);
+    const filename = match
+      ? match[1]
+      : `IB_Math_Grade${req.grade}_${req.topic.replace(/[^a-zA-Z0-9]/g, '_')}_${
+          new Date().toISOString().replace(/[-T:.Z]/g, '').slice(0, 14)
+        }.pdf`;
+
     const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
     const link = document.createElement('a');
     link.href = url;
-    const topic = req.topic.replace(/[^a-zA-Z0-9]/g, '_');
-    link.setAttribute('download', `IB_Math_Grade${req.grade}_${topic}.pdf`);
+    link.setAttribute('download', filename);
     document.body.appendChild(link);
     link.click();
     link.remove();

@@ -196,6 +196,11 @@ public class GeminiService {
                 cleaned = cleaned.replaceAll("^```[a-z]*\\n?", "").replaceAll("```$", "").strip();
             }
 
+            // Gemini occasionally emits literal control characters (newline, tab, CR)
+            // inside JSON string values, which is invalid JSON.  Walk the string and
+            // escape them only while inside a quoted JSON string value.
+            cleaned = sanitiseJsonControlChars(cleaned);
+
             JsonNode node = objectMapper.readTree(cleaned);
 
             String title = node.path("title").asText("IB Math Worksheet");
@@ -231,6 +236,55 @@ public class GeminiService {
         } catch (Exception e) {
             throw new RuntimeException("Failed to parse worksheet JSON from Gemini: " + e.getMessage(), e);
         }
+    }
+
+    /**
+     * Walks a raw JSON string and replaces literal control characters
+     * (newline, carriage-return, tab, and other chars 0x00-0x1F) that appear
+     * inside JSON string values with their proper JSON escape sequences.
+     * Characters outside string values (structural JSON) are left untouched.
+     */
+    private static String sanitiseJsonControlChars(String raw) {
+        StringBuilder sb = new StringBuilder(raw.length() + 64);
+        boolean inString = false;
+        boolean escaped  = false;
+
+        for (int i = 0; i < raw.length(); i++) {
+            char c = raw.charAt(i);
+
+            if (escaped) {
+                // Previous char was a backslash — emit as-is, clear escape flag
+                sb.append(c);
+                escaped = false;
+                continue;
+            }
+
+            if (c == '\\' && inString) {
+                sb.append(c);
+                escaped = true;
+                continue;
+            }
+
+            if (c == '"') {
+                inString = !inString;
+                sb.append(c);
+                continue;
+            }
+
+            if (inString && c < 0x20) {
+                // Literal control character inside a JSON string — escape it
+                switch (c) {
+                    case '\n' -> sb.append("\\n");
+                    case '\r' -> sb.append("\\r");
+                    case '\t' -> sb.append("\\t");
+                    default   -> sb.append(String.format("\\u%04x", (int) c));
+                }
+                continue;
+            }
+
+            sb.append(c);
+        }
+        return sb.toString();
     }
 }
 

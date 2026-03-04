@@ -6,10 +6,14 @@ const STAGES = [
   { emoji: '✏️',  label: 'Writing question text & hints…', duration: 4000 },
   { emoji: '📐', label: 'Generating diagrams & visuals…', duration: 3500 },
   { emoji: '🔑', label: 'Preparing answer key…', duration: 2500 },
-  { emoji: '✅', label: 'Finalising your worksheet…', duration: 9999 }, // stays here until done
+  { emoji: '✅', label: 'Finalising…', duration: 9999 }, // stays here until done
 ];
 
-export default function GeneratingProgress() {
+interface Props {
+  mode?: 'generate' | 'pdf';
+}
+
+export default function GeneratingProgress({ mode = 'generate' }: Props) {
   const [stageIndex, setStageIndex] = useState(0);
   const [dots, setDots] = useState('');
   const [barWidth, setBarWidth] = useState(4);
@@ -50,11 +54,17 @@ export default function GeneratingProgress() {
       {/* Title */}
       <div className="flex items-center gap-3">
         <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center animate-pulse">
-          <span className="text-white text-lg">✨</span>
+          <span className="text-white text-lg">{mode === 'pdf' ? '📄' : '✨'}</span>
         </div>
         <div>
-          <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Generating your worksheet{dots}</h2>
-          <p className="text-sm text-slate-500 dark:text-slate-400">Gemini AI is at work — this takes about 10–20 seconds</p>
+          <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100">
+            {mode === 'pdf' ? `Building your PDF${dots}` : `Generating your worksheet${dots}`}
+          </h2>
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            {mode === 'pdf'
+              ? 'Gemini AI is creating the worksheet then packaging it as PDF'
+              : 'Gemini AI is at work — this takes about 10–20 seconds'}
+          </p>
         </div>
       </div>
 
@@ -75,6 +85,9 @@ export default function GeneratingProgress() {
           const isDone = i < completedStages;
           const isActive = i === completedStages;
           const isPending = i > completedStages;
+          const label = (mode === 'pdf' && i === STAGES.length - 1)
+            ? '📄 Rendering PDF…'
+            : `${stage.emoji} ${stage.label}`;
           return (
             <li
               key={i}
@@ -103,7 +116,7 @@ export default function GeneratingProgress() {
 
               {/* Emoji + label */}
               <span className={isActive ? '' : isDone ? 'line-through decoration-slate-300 dark:decoration-slate-600' : ''}>
-                {stage.emoji} {stage.label}
+                {label}
               </span>
             </li>
           );

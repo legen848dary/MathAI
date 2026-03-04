@@ -23,7 +23,10 @@ error()   { echo "${RED}✖ $*${NC}"; exit 1; }
 
 # ── Load .env if present (for GEMINI_API_KEY etc.) ───────────────────────────
 if [[ -f .env ]]; then
-  export $(grep -v '^#' .env | xargs)
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    [[ -z "$line" || "$line" == \#* ]] && continue
+    export "$line"
+  done < .env
   info "Loaded .env"
 fi
 
@@ -84,7 +87,7 @@ docker compose up -d
 echo ""
 info "Waiting for backend to be healthy…"
 for i in $(seq 1 30); do
-  if docker compose ps backend | grep -q "healthy"; then
+  if curl -sf http://localhost:8080/actuator/health > /dev/null 2>&1; then
     echo ""
     success "Backend is healthy."
     break
@@ -110,7 +113,7 @@ echo "    ./syncAndDeployLocally.sh stop     # stop everything"
 echo "    ./syncAndDeployLocally.sh restart  # restart"
 echo ""
 echo "  When happy, deploy to production:"
-echo "    ./syncAndDeploy.sh \"your commit message\""
+echo "    ./syncAndDeploy.sh 'your commit message'"
 echo "══════════════════════════════════════════════════"
 echo ""
 

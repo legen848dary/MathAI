@@ -19,6 +19,7 @@ repositories {
 
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter-web")
+    implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("com.github.librepdf:openpdf:2.0.3")
     implementation("org.springframework.boot:spring-boot-starter-validation")
 

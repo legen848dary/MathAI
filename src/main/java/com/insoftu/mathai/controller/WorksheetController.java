@@ -50,8 +50,10 @@ public class WorksheetController {
         WorksheetResponse worksheet = geminiService.generateWorksheet(request);
         byte[] pdf = pdfService.generatePdf(worksheet);
 
+        String timestamp = java.time.LocalDateTime.now()
+                .format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
         String filename = ("IB_Math_Grade" + request.grade() + "_" + request.topic())
-                .replaceAll("[^a-zA-Z0-9_]", "_") + ".pdf";
+                .replaceAll("[^a-zA-Z0-9_]", "_") + "_" + timestamp + ".pdf";
 
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")

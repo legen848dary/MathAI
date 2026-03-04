@@ -34,6 +34,12 @@ public class GeminiService {
     }
 
     public WorksheetResponse generateWorksheet(WorksheetRequest request) {
+        log.info("Worksheet request  — grade={}, topic='{}', difficulty={}, questions={}, context='{}'",
+                request.grade(), request.topic(), request.difficulty(), request.questionCount(),
+                request.context() != null ? request.context() : "");
+
+        long startMs = System.currentTimeMillis();
+
         String prompt = buildPrompt(request);
         GeminiResult result = callGemini(prompt);
 
@@ -52,7 +58,14 @@ public class GeminiService {
             }
         }
 
-        return parseResponse(result.text(), request);
+        WorksheetResponse response = parseResponse(result.text(), request);
+
+        long elapsedMs = System.currentTimeMillis() - startMs;
+        log.info("Worksheet generated — grade={}, topic='{}', questions={}, elapsed={}ms ({} s)",
+                request.grade(), request.topic(), response.questions().size(),
+                elapsedMs, String.format("%.1f", elapsedMs / 1000.0));
+
+        return response;
     }
 
     private String buildPrompt(WorksheetRequest request) {

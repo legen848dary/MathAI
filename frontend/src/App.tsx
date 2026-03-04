@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import WorksheetForm from './components/WorksheetForm';
 import WorksheetViewer from './components/WorksheetViewer';
+import GeneratingProgress from './components/GeneratingProgress';
 import ThemeToggle from './components/ThemeToggle';
 import { generateWorksheet, downloadPdf } from './api/worksheetApi';
 import type { WorksheetRequest, WorksheetResponse } from './types/worksheet';
@@ -85,26 +86,32 @@ export default function App() {
               </div>
             )}
 
-            <WorksheetForm
-              onGenerate={handleGenerate}
-              onDownloadPdf={handleDownloadPdf}
-              loading={loading}
-              pdfLoading={pdfLoading}
-            />
+            {loading ? (
+              <GeneratingProgress />
+            ) : (
+              <WorksheetForm
+                onGenerate={handleGenerate}
+                onDownloadPdf={handleDownloadPdf}
+                loading={loading}
+                pdfLoading={pdfLoading}
+              />
+            )}
 
-            <div className="no-print flex flex-wrap justify-center gap-3 pt-2">
-              {[
-                'IB MYP and DP aligned',
-                'Powered by Gemini AI',
-                'Print-ready PDF',
-                'Hints included',
-                'Answer key included',
-              ].map(f => (
-                <span key={f} className="text-xs text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-1.5 rounded-full shadow-sm">
-                  {f}
-                </span>
-              ))}
-            </div>
+            {!loading && (
+              <div className="no-print flex flex-wrap justify-center gap-3 pt-2">
+                {[
+                  'IB MYP and DP aligned',
+                  'Powered by Gemini AI',
+                  'Print-ready PDF',
+                  'Hints included',
+                  'Answer key included',
+                ].map(f => (
+                  <span key={f} className="text-xs text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-1.5 rounded-full shadow-sm">
+                    {f}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
         ) : (
           <>

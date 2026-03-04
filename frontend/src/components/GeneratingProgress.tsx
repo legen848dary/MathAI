@@ -58,12 +58,12 @@ export default function GeneratingProgress({ mode = 'generate' }: Props) {
         </div>
         <div>
           <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100">
-            {mode === 'pdf' ? `Building your PDF${dots}` : `Generating your worksheet${dots}`}
+            {mode === 'pdf' ? `Building your PDF${dots}` : `Generating worksheet${dots}`}
           </h2>
           <p className="text-sm text-slate-500 dark:text-slate-400">
             {mode === 'pdf'
-              ? 'Gemini AI is creating the worksheet then packaging it as PDF'
-              : 'Gemini AI is at work — this takes about 10–20 seconds'}
+              ? 'Math AI is creating the worksheet then packaging it as PDF'
+              : 'Math AI is at work — this takes about 10–20 seconds'}
           </p>
         </div>
       </div>

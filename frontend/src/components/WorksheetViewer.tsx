@@ -83,13 +83,16 @@ export default function WorksheetViewer({ worksheet, onPrint, onReset }: Props) 
                       className="
                         [&_svg]:max-w-full
                         [&_svg_text]:fill-slate-800          dark:[&_svg_text]:fill-slate-100
+                        [&_svg_tspan]:fill-slate-800         dark:[&_svg_tspan]:fill-slate-100
                         [&_svg_line]:stroke-slate-700        dark:[&_svg_line]:stroke-slate-200
                         [&_svg_polyline]:stroke-slate-700    dark:[&_svg_polyline]:stroke-slate-200
                         [&_svg_polygon]:stroke-slate-700     dark:[&_svg_polygon]:stroke-slate-200
+                        [&_svg_polygon]:fill-slate-200       dark:[&_svg_polygon]:fill-slate-600
                         [&_svg_path]:stroke-slate-700        dark:[&_svg_path]:stroke-slate-200
                         [&_svg_circle]:stroke-slate-700      dark:[&_svg_circle]:stroke-slate-200
                         [&_svg_rect]:stroke-slate-700        dark:[&_svg_rect]:stroke-slate-200
                         [&_svg_ellipse]:stroke-slate-700     dark:[&_svg_ellipse]:stroke-slate-200
+                        [&_svg]:text-slate-800               dark:[&_svg]:text-slate-100
                       "
                       dangerouslySetInnerHTML={{ __html: q.diagram }}
                     />

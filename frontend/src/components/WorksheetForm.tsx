@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import type { Difficulty, WorksheetRequest } from '../types/worksheet';
 import { fetchTopics } from '../api/worksheetApi';
 
@@ -45,10 +45,8 @@ export default function WorksheetForm({ onGenerate, onDownloadPdf, loading, pdfL
   const [context, setContext] = useState<string>('');
   const [topics, setTopics] = useState<string[]>([]);
   const [topicsLoading, setTopicsLoading] = useState(false);
-  const [restorePending, setRestorePending] = useState(false);
+  const restoringRef = useRef(false);
 
-  // Persist form state to localStorage whenever it changes (debounced by value).
-  // We save on-demand via wrapSubmit, but also keep saved form available for restore detection.
   const hasSavedForm = getSavedForm() !== null;
 
   useEffect(() => {
@@ -57,23 +55,25 @@ export default function WorksheetForm({ onGenerate, onDownloadPdf, loading, pdfL
       .then(t => {
         setTopics(t);
         // Don't override topic during a restore operation
-        if (!restorePending) {
+        if (!restoringRef.current) {
           setTopic(t[0] ?? '');
         }
       })
       .finally(() => setTopicsLoading(false));
-  }, [grade, restorePending]);
+  }, [grade]);
 
-  // When topics arrive after a restore, set the saved topic
+  // When new topics arrive during a restore, apply the saved topic
   useEffect(() => {
-    if (restorePending && topics.length > 0) {
-      const saved = getSavedForm();
-      if (saved && topics.includes(saved.topic)) {
-        setTopic(saved.topic);
-      }
-      setRestorePending(false);
+    if (!restoringRef.current || topics.length === 0) return;
+    const saved = getSavedForm();
+    if (saved && topics.includes(saved.topic)) {
+      setTopic(saved.topic);
+    } else {
+      // Saved topic not in this grade's list — fall back to first topic
+      setTopic(topics[0] ?? '');
     }
-  }, [topics, restorePending]);
+    restoringRef.current = false;
+  }, [topics]);
 
   const buildRequest = (): WorksheetRequest => ({ grade, topic, difficulty, questionCount, context: context.trim() || undefined });
 
@@ -87,12 +87,12 @@ export default function WorksheetForm({ onGenerate, onDownloadPdf, loading, pdfL
   const handleRestore = () => {
     const saved = getSavedForm();
     if (!saved) return;
-    setRestorePending(true);
+    restoringRef.current = true;
     setGrade(saved.grade);
     setDifficulty(saved.difficulty as Difficulty);
     setQuestionCount(saved.questionCount);
     setContext(saved.context || '');
-    // grade change triggers topic fetch; the second useEffect above will set the topic
+    // grade change triggers topic fetch; the useEffect above watches `topics` and applies saved.topic when ready
   };
 
   const anyLoading = loading || pdfLoading || topicsLoading;
@@ -110,7 +110,7 @@ export default function WorksheetForm({ onGenerate, onDownloadPdf, loading, pdfL
         {hasSavedForm && (
           <button
             onClick={handleRestore}
-            disabled={anyLoading || restorePending}
+            disabled={anyLoading}
             className="ml-auto text-xs font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 bg-blue-50 dark:bg-blue-900/30 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-40"
             title="Fill the form with your last submitted values"
           >

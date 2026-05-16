@@ -1,12 +1,14 @@
 package com.insoftu.mathai.config;
 
 import com.insoftu.mathai.ai.AiServiceException;
+import org.apache.catalina.connector.ClientAbortException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.time.Instant;
@@ -45,6 +47,19 @@ public class GlobalExceptionHandler {
                 "message", ex.getMessage() != null ? ex.getMessage() : "Resource not found",
                 "timestamp", Instant.now().toString()
         ));
+    }
+
+    /**
+     * Client disconnected before response could be sent — harmless, log at WARN.
+     * Common with long-running AI generation where the browser/proxy times out.
+     */
+    @ExceptionHandler(AsyncRequestNotUsableException.class)
+    public void handleAsyncNotUsable(AsyncRequestNotUsableException ex) {
+        if (ex.getCause() instanceof ClientAbortException) {
+            log.warn("Client disconnected before response completed: {}", ex.getCause().getMessage());
+        } else {
+            log.warn("Async request not usable: {}", ex.getMessage());
+        }
     }
 
     /**

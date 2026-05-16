@@ -10,11 +10,37 @@ gemini:
     key: ${GEMINI_API_KEY}
     model: ${GEMINI_MODEL:gemini-2.5-flash}
 
+novita:
+  api:
+    key: ${NOVITA_API_KEY:}
+    model: ${NOVITA_MODEL:deepseek/deepseek-v4-flash}
+    base-url: ${NOVITA_BASE_URL:https://api.novita.ai/openai}
+
 spring:
   application:
     name: MathAI
   jackson:
     default-property-inclusion: non_null
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/mathai}
+    username: ${SPRING_DATASOURCE_USERNAME:mathai}
+    password: ${SPRING_DATASOURCE_PASSWORD:mathai_secret}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+admin:
+  jwt:
+    secret: ${JWT_SECRET:mathai-jwt-secret-change-me}
+    expiration-minutes: 30
 
 management:
   endpoints:
@@ -29,9 +55,28 @@ logging:
   level:
     com.insoftu.mathai: DEBUG
     org.springframework.web: INFO
+    org.flywaydb: INFO
   file:
     name: /app/logs/mathai.log
   pattern:
     file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
     console: "%d{HH:mm:ss} %-5level %logger{36} - %msg%n"
 
+---
+spring:
+  config:
+    activate:
+      on-profile: local
+  datasource:
+    url: jdbc:h2:mem:mathai;DB_CLOSE_DELAY=-1
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+  flyway:
+    enabled: false
+
+logging:
+  level:
+    org.hibernate.SQL: DEBUG

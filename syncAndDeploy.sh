@@ -123,6 +123,7 @@ echo "════════════════════════�
 success "  Deployment complete!"
 echo ""
 echo "  🌐  https://mathai.insoftu.com"
+echo "  🔐  https://mathai.insoftu.com/portal/ops-login  ← Admin Portal"
 echo ""
 echo "  Useful commands on the droplet:"
 echo "    ssh ${DROPLET_USER}@${DROPLET_IP}"

@@ -30,9 +30,9 @@ if [[ -f .env ]]; then
   info "Loaded .env"
 fi
 
-# ── Require API key ───────────────────────────────────────────────────────────
-if [[ -z "$GEMINI_API_KEY" ]]; then
-  error "GEMINI_API_KEY is not set. Add it to .env or export it before running."
+# ── Require at least one AI API key ─────────────────────────────────────────────
+if [[ -z "$GEMINI_API_KEY" ]] && [[ -z "$NOVITA_API_KEY" ]]; then
+  error "At least one of GEMINI_API_KEY or NOVITA_API_KEY must be set. Add to .env or export."
 fi
 
 # ── Handle sub-commands ───────────────────────────────────────────────────────
@@ -78,8 +78,13 @@ info "Building & starting containers (this may take a few minutes on first run)�
 echo ""
 
 export LOG_DIR="$SCRIPT_DIR/logs"
-export GEMINI_API_KEY="$GEMINI_API_KEY"
+export GEMINI_API_KEY="${GEMINI_API_KEY:-}"
 export GEMINI_MODEL="${GEMINI_MODEL:-gemini-2.5-flash}"
+export NOVITA_API_KEY="${NOVITA_API_KEY:-}"
+export DB_PASSWORD="${DB_PASSWORD:-mathai-db-password}"
+export ADMIN_EMAIL="${ADMIN_EMAIL:-admin@mathai.local}"
+export ADMIN_PASSWORD="${ADMIN_PASSWORD:-changeme}"
+export JWT_SECRET="${JWT_SECRET:-mathai-jwt-secret-change-me}"
 
 docker compose build --no-cache
 docker compose up -d

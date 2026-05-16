@@ -2,8 +2,8 @@ package com.insoftu.mathai.controller;
 
 import com.insoftu.mathai.model.WorksheetRequest;
 import com.insoftu.mathai.model.WorksheetResponse;
-import com.insoftu.mathai.service.GeminiService;
 import com.insoftu.mathai.service.PdfService;
+import com.insoftu.mathai.service.WorksheetGenerationService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -17,11 +17,12 @@ import java.util.Map;
 @RequestMapping("/api")
 public class WorksheetController {
 
-    private final GeminiService geminiService;
+    private final WorksheetGenerationService worksheetGenerationService;
     private final PdfService pdfService;
 
-    public WorksheetController(GeminiService geminiService, PdfService pdfService) {
-        this.geminiService = geminiService;
+    public WorksheetController(WorksheetGenerationService worksheetGenerationService,
+                               PdfService pdfService) {
+        this.worksheetGenerationService = worksheetGenerationService;
         this.pdfService = pdfService;
     }
 
@@ -38,7 +39,7 @@ public class WorksheetController {
      */
     @PostMapping("/worksheet/generate")
     public ResponseEntity<WorksheetResponse> generate(@Valid @RequestBody WorksheetRequest request) {
-        WorksheetResponse worksheet = geminiService.generateWorksheet(request);
+        WorksheetResponse worksheet = worksheetGenerationService.generateWorksheet(request);
         return ResponseEntity.ok(worksheet);
     }
 
@@ -47,7 +48,7 @@ public class WorksheetController {
      */
     @PostMapping("/worksheet/pdf")
     public ResponseEntity<byte[]> generatePdf(@Valid @RequestBody WorksheetRequest request) {
-        WorksheetResponse worksheet = geminiService.generateWorksheet(request);
+        WorksheetResponse worksheet = worksheetGenerationService.generateWorksheet(request);
         byte[] pdf = pdfService.generatePdf(worksheet);
 
         String timestamp = java.time.LocalDateTime.now()

@@ -1,4 +1,22 @@
 services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: mathai
+      POSTGRES_USER: mathai
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-mathai_secret}
+    ports:
+      - "5432:5432"
+    volumes:
+      - mathai-db-data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mathai -d mathai"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
   backend:
     build:
       context: .
@@ -6,10 +24,20 @@ services:
     environment:
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - GEMINI_MODEL=${GEMINI_MODEL:-gemini-2.5-flash}
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/mathai
+      - SPRING_DATASOURCE_USERNAME=mathai
+      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD:-mathai_secret}
+      - ADMIN_EMAIL=${ADMIN_EMAIL}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+      - JWT_SECRET=${JWT_SECRET:-mathai-jwt-secret-change-me}
+      - NOVITA_API_KEY=${NOVITA_API_KEY:-}
     ports:
       - "8080:8080"
     volumes:
       - "${LOG_DIR:-./logs}:/app/logs"
+    depends_on:
+      db:
+        condition: service_healthy
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8080/api/topics?grade=6"]
@@ -30,3 +58,6 @@ services:
       backend:
         condition: service_healthy
     restart: unless-stopped
+
+volumes:
+  mathai-db-data:

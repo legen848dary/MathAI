@@ -54,26 +54,17 @@ export default function WorksheetForm({ onGenerate, onDownloadPdf, loading, pdfL
     fetchTopics(grade)
       .then(t => {
         setTopics(t);
-        // Don't override topic during a restore operation
-        if (!restoringRef.current) {
+        if (restoringRef.current) {
+          // Restore in progress — apply saved topic now that correct topics arrived
+          const saved = getSavedForm();
+          setTopic(saved && t.includes(saved.topic) ? saved.topic : (t[0] ?? ''));
+          restoringRef.current = false;
+        } else {
           setTopic(t[0] ?? '');
         }
       })
       .finally(() => setTopicsLoading(false));
   }, [grade]);
-
-  // When new topics arrive during a restore, apply the saved topic
-  useEffect(() => {
-    if (!restoringRef.current || topics.length === 0) return;
-    const saved = getSavedForm();
-    if (saved && topics.includes(saved.topic)) {
-      setTopic(saved.topic);
-    } else {
-      // Saved topic not in this grade's list — fall back to first topic
-      setTopic(topics[0] ?? '');
-    }
-    restoringRef.current = false;
-  }, [topics]);
 
   const buildRequest = (): WorksheetRequest => ({ grade, topic, difficulty, questionCount, context: context.trim() || undefined });
 
@@ -87,12 +78,19 @@ export default function WorksheetForm({ onGenerate, onDownloadPdf, loading, pdfL
   const handleRestore = () => {
     const saved = getSavedForm();
     if (!saved) return;
-    restoringRef.current = true;
+
+    if (saved.grade === grade && topics.length > 0) {
+      // Same grade, topics already loaded — set topic directly
+      setTopic(topics.includes(saved.topic) ? saved.topic : (topics[0] ?? ''));
+    } else {
+      // Grade differs or topics still loading — useEffect will apply saved.topic when fetch completes
+      restoringRef.current = true;
+    }
+
     setGrade(saved.grade);
     setDifficulty(saved.difficulty as Difficulty);
     setQuestionCount(saved.questionCount);
     setContext(saved.context || '');
-    // grade change triggers topic fetch; the useEffect above watches `topics` and applies saved.topic when ready
   };
 
   const anyLoading = loading || pdfLoading || topicsLoading;

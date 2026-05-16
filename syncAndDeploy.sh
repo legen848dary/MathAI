@@ -40,6 +40,7 @@ git add -A
 # Check if there is anything to commit
 if git diff --cached --quiet; then
   warn "  Nothing new to commit — working tree is clean."
+  warn "  (Will still rsync + rebuild below)"
 else
   COMMIT_MSG="${1:-"Deploy: $(date '+%Y-%m-%d %H:%M:%S')"}"
   git commit -m "$COMMIT_MSG"
@@ -89,33 +90,50 @@ echo "  (This takes ~2 min on code changes, ~5 min if base images changed)"
 echo ""
 
 ssh -o StrictHostKeyChecking=no "${DROPLET_USER}@${DROPLET_IP}" bash << 'REMOTE'
-set -e
 cd /opt/mathai
 
-# Ensure log directory exists on the host (as ubuntu user)
-mkdir -p /home/ubuntu/logs
-export LOG_DIR=/home/ubuntu/logs
+# Ensure log directory exists on the host
+mkdir -p /home/ubuntu/logs 2>/dev/null || mkdir -p /tmp/logs 2>/dev/null || true
+export LOG_DIR=$( [ -d /home/ubuntu/logs ] && echo /home/ubuntu/logs || echo /tmp/logs )
+
+# Check docker access
+if ! docker ps >/dev/null 2>&1; then
+  echo "  ✖ ERROR: docker not accessible. Is ${USER} in the docker group?"
+  echo "    Run as root: usermod -aG docker ubuntu"
+  echo "    Then log out and back in."
+  exit 1
+fi
 
 echo "  >>> docker compose down --remove-orphans"
-docker compose down --remove-orphans
+docker compose down --remove-orphans 2>&1 || echo "  (down had issues, continuing...)"
 
-echo "  >>> docker compose up -d --build"
-docker compose up -d --build
+echo "  >>> docker compose up -d --build  (this is the rebuild step)"
+if ! docker compose up -d --build 2>&1; then
+  echo "  ✖ ERROR: docker compose up failed. Check the output above."
+  exit 1
+fi
 
 echo ""
 echo "  >>> Waiting for backend to be healthy..."
+HEALTHY=0
 for i in $(seq 1 24); do
-  if docker compose ps backend | grep -q "healthy"; then
+  if docker compose ps backend 2>/dev/null | grep -q "healthy"; then
     echo "  >>> Backend is healthy."
+    HEALTHY=1
     break
   fi
   printf "."
   sleep 5
 done
+if [ "$HEALTHY" -eq 0 ]; then
+  echo ""
+  echo "  ✖ WARNING: Backend did not become healthy within 120s."
+  echo "  Check logs: docker compose logs backend --tail 50"
+fi
 echo ""
 
 echo "  >>> Container status:"
-docker compose ps
+docker compose ps 2>&1
 REMOTE
 
 echo ""

@@ -10,7 +10,7 @@
 set -e
 
 DROPLET_IP="129.212.238.124"
-DROPLET_USER="root"
+DROPLET_USER="ubuntu"
 REMOTE_DIR="/opt/mathai"
 SCRIPT_DIR="$(cd "$(dirname "${0:A}")" && pwd)"   # project root (absolute, symlink-safe)
 
@@ -92,9 +92,9 @@ ssh -o StrictHostKeyChecking=no "${DROPLET_USER}@${DROPLET_IP}" bash << 'REMOTE'
 set -e
 cd /opt/mathai
 
-# Ensure log directory exists on the host
-mkdir -p /root/logs
-export LOG_DIR=/root/logs
+# Ensure log directory exists on the host (as ubuntu user)
+mkdir -p /home/ubuntu/logs
+export LOG_DIR=/home/ubuntu/logs
 
 echo "  >>> docker compose down --remove-orphans"
 docker compose down --remove-orphans

@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import AdminLogin from './AdminLogin';
 import AdminTwoFactor from './AdminTwoFactor';
-import AdminSetupTwoFactor from './AdminSetupTwoFactor';
 import AdminOverview from './AdminOverview';
+import AdminSettings from './AdminSettings';
 import { useAdminAuth } from './hooks/useAdminAuth';
 import type { LoginResponse } from './api/adminApi';
 
@@ -10,7 +10,7 @@ type Screen =
   | { name: 'login' }
   | { name: 'two-factor'; email: string; tempToken: string }
   | { name: 'overview' }
-  | { name: 'setup-two-factor' };
+  | { name: 'settings' };
 
 export default function AdminApp() {
   const { isAuthenticated, setToken, logout } = useAdminAuth();
@@ -54,16 +54,15 @@ export default function AdminApp() {
     case 'overview':
       return (
         <AdminOverview
-          onSetupTwoFactor={() => setScreen({ name: 'setup-two-factor' })}
+          onGoToSettings={() => setScreen({ name: 'settings' })}
           onLogout={handleLogout}
         />
       );
 
-    case 'setup-two-factor':
+    case 'settings':
       return (
-        <AdminSetupTwoFactor
-          onComplete={() => setScreen({ name: 'overview' })}
-          onCancel={() => setScreen({ name: 'overview' })}
+        <AdminSettings
+          onGoToOverview={() => setScreen({ name: 'overview' })}
         />
       );
   }

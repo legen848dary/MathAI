@@ -3,18 +3,18 @@ import {
   getSettings,
   setAiProvider,
   getTwoFactorStatus,
-  disableTwoFactor,
 } from './api/adminApi';
 import type { SettingsResponse } from './api/adminApi';
 
 interface Props {
-  onSetupTwoFactor: () => void;
+  onGoToSettings: () => void;
   onLogout: () => void;
 }
 
-export default function AdminOverview({ onSetupTwoFactor, onLogout }: Props) {
+export default function AdminOverview({ onGoToSettings, onLogout }: Props) {
   const [settings, setSettings] = useState<SettingsResponse | null>(null);
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
+  const [selectedProvider, setSelectedProvider] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [saving, setSaving] = useState(false);
@@ -27,20 +27,22 @@ export default function AdminOverview({ onSetupTwoFactor, onLogout }: Props) {
     try {
       const [s, tf] = await Promise.all([getSettings(), getTwoFactorStatus()]);
       setSettings(s);
+      setSelectedProvider(s.currentProvider);
       setTwoFactorEnabled(tf.enabled);
     } catch (err: unknown) {
       setError('Failed to load settings');
     }
   };
 
-  const handleProviderChange = async (provider: string) => {
+  const handleSaveProvider = async () => {
+    if (!settings || selectedProvider === settings.currentProvider) return;
     setSaving(true);
     setError('');
     setSuccess('');
     try {
-      await setAiProvider(provider);
-      setSettings((prev: SettingsResponse | null) => prev ? { ...prev, currentProvider: provider } : null);
-      setSuccess(`AI provider switched to ${provider}`);
+      await setAiProvider(selectedProvider);
+      setSettings(prev => prev ? { ...prev, currentProvider: selectedProvider } : null);
+      setSuccess(`AI provider switched to ${selectedProvider}`);
     } catch (err: unknown) {
       setError('Failed to switch provider');
     } finally {
@@ -48,15 +50,7 @@ export default function AdminOverview({ onSetupTwoFactor, onLogout }: Props) {
     }
   };
 
-  const handleDisableTwoFactor = async () => {
-    try {
-      await disableTwoFactor();
-      setTwoFactorEnabled(false);
-      setSuccess('2FA disabled');
-    } catch {
-      setError('Failed to disable 2FA');
-    }
-  };
+  const isProviderDirty = settings && selectedProvider !== settings.currentProvider;
 
   if (!settings) {
     return (
@@ -74,17 +68,23 @@ export default function AdminOverview({ onSetupTwoFactor, onLogout }: Props) {
             <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center text-white font-bold">
               M
             </div>
-            <div>
-              <span className="font-bold">MathAI Admin</span>
-              <span className="ml-2 text-xs text-slate-400">Overview</span>
-            </div>
+            <span className="font-bold">MathAI Admin</span>
           </div>
-          <button
-            onClick={onLogout}
-            className="text-sm text-slate-400 hover:text-white transition-colors px-3 py-1.5 border border-slate-600 rounded-lg hover:border-slate-500"
-          >
-            Sign Out
-          </button>
+          <nav className="flex items-center gap-1">
+            <span className="px-3 py-1.5 text-sm font-medium bg-blue-600 rounded-lg">Overview</span>
+            <button
+              onClick={onGoToSettings}
+              className="px-3 py-1.5 text-sm text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"
+            >
+              Settings
+            </button>
+            <button
+              onClick={onLogout}
+              className="px-3 py-1.5 text-sm text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"
+            >
+              Sign Out
+            </button>
+          </nav>
         </div>
       </header>
 
@@ -100,17 +100,33 @@ export default function AdminOverview({ onSetupTwoFactor, onLogout }: Props) {
           </div>
         )}
 
+        {/* Status cards */}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="bg-slate-800 rounded-xl border border-slate-700 p-5">
+            <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Active AI Provider</p>
+            <p className="text-lg font-semibold capitalize">{settings.currentProvider}</p>
+          </div>
+          <div className="bg-slate-800 rounded-xl border border-slate-700 p-5">
+            <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Two-Factor Auth</p>
+            <p className="text-lg font-semibold">
+              <span className={twoFactorEnabled ? 'text-green-400' : 'text-slate-400'}>
+                {twoFactorEnabled ? 'Enabled' : 'Disabled'}
+              </span>
+            </p>
+          </div>
+        </div>
+
         {/* AI Provider Section */}
         <section className="bg-slate-800 rounded-xl border border-slate-700 p-6">
           <h2 className="font-semibold text-lg mb-1">AI Provider</h2>
           <p className="text-sm text-slate-400 mb-4">
-            Select which AI service to use for worksheet generation. Changes take effect immediately.
+            Select which AI service to use for worksheet generation. Click Save to apply.
           </p>
 
           <div className="flex items-center gap-3">
             <select
-              value={settings.currentProvider}
-              onChange={e => handleProviderChange(e.target.value)}
+              value={selectedProvider}
+              onChange={e => setSelectedProvider(e.target.value)}
               disabled={saving}
               className="flex-1 px-4 py-2.5 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
             >
@@ -120,46 +136,13 @@ export default function AdminOverview({ onSetupTwoFactor, onLogout }: Props) {
                 </option>
               ))}
             </select>
-            {saving && <span className="text-sm text-slate-400 animate-pulse">Saving...</span>}
-          </div>
-        </section>
-
-        {/* 2FA Section */}
-        <section className="bg-slate-800 rounded-xl border border-slate-700 p-6">
-          <h2 className="font-semibold text-lg mb-1">Two-Factor Authentication</h2>
-          <p className="text-sm text-slate-400 mb-4">
-            {twoFactorEnabled
-              ? '2FA is currently enabled. Use your authenticator app to sign in.'
-              : 'Add an extra layer of security to your admin account.'}
-          </p>
-
-          <div className="flex items-center gap-3">
-            <span
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium ${
-                twoFactorEnabled
-                  ? 'bg-green-900/40 text-green-300 border border-green-700'
-                  : 'bg-slate-700 text-slate-400 border border-slate-600'
-              }`}
+            <button
+              onClick={handleSaveProvider}
+              disabled={!isProviderDirty || saving}
+              className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white font-medium rounded-lg transition-colors whitespace-nowrap"
             >
-              <span className={`w-2 h-2 rounded-full ${twoFactorEnabled ? 'bg-green-400' : 'bg-slate-500'}`} />
-              {twoFactorEnabled ? 'Enabled' : 'Disabled'}
-            </span>
-
-            {twoFactorEnabled ? (
-              <button
-                onClick={handleDisableTwoFactor}
-                className="text-sm text-red-400 hover:text-red-300 transition-colors"
-              >
-                Disable 2FA
-              </button>
-            ) : (
-              <button
-                onClick={onSetupTwoFactor}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
-              >
-                Set Up 2FA
-              </button>
-            )}
+              {saving ? 'Saving...' : 'Save'}
+            </button>
           </div>
         </section>
       </main>

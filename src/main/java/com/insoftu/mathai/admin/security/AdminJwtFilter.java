@@ -34,11 +34,20 @@ public class AdminJwtFilter extends OncePerRequestFilter {
                                     FilterChain filterChain) throws ServletException, IOException {
         String path = request.getRequestURI();
 
-        // Skip auth for login and 2FA verification endpoints
+        // Skip auth for login, 2FA endpoints, and CORS preflight
         if (path.equals("/api/admin/auth/login")
                 || path.equals("/api/admin/auth/2fa/verify")
                 || path.equals("/api/admin/auth/refresh")) {
             filterChain.doFilter(request, response);
+            return;
+        }
+
+        // Handle CORS preflight
+        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+            response.setHeader("Access-Control-Allow-Origin", "*");
+            response.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+            response.setHeader("Access-Control-Allow-Headers", "Authorization, Content-Type");
+            response.setStatus(HttpServletResponse.SC_OK);
             return;
         }
 

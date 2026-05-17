@@ -3,10 +3,7 @@ import type { WorksheetResponse } from '../types/worksheet';
 
 interface Props {
   worksheet: WorksheetResponse;
-  onPrint: () => void;
   onReset: () => void;
-  onDownloadPdf: (includeAnswers: boolean) => void;
-  pdfLoading?: boolean;
 }
 
 const difficultyBadge = (d: string) => {
@@ -18,7 +15,7 @@ const difficultyBadge = (d: string) => {
   return map[d] ?? 'bg-slate-100 text-slate-600';
 };
 
-export default function WorksheetViewer({ worksheet, onReset, onDownloadPdf, pdfLoading }: Props) {
+export default function WorksheetViewer({ worksheet, onReset }: Props) {
   const [printAnswers, setPrintAnswers] = useState(true);
   const printContainerRef = useRef<HTMLDivElement>(null);
 
@@ -66,20 +63,6 @@ export default function WorksheetViewer({ worksheet, onReset, onDownloadPdf, pdf
             className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors flex items-center gap-2"
           >
             🖨 Print with Answers
-          </button>
-          <button
-            onClick={() => onDownloadPdf(false)}
-            disabled={pdfLoading}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors flex items-center gap-2 disabled:opacity-50"
-          >
-            {pdfLoading ? '⏳ Generating…' : '📥 Download Questions'}
-          </button>
-          <button
-            onClick={() => onDownloadPdf(true)}
-            disabled={pdfLoading}
-            className="bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors flex items-center gap-2 disabled:opacity-50"
-          >
-            {pdfLoading ? '⏳ Generating…' : '📥 Download with Answers'}
           </button>
         </div>
       </div>

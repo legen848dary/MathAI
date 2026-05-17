@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import WorksheetForm from './components/WorksheetForm';
 import WorksheetViewer from './components/WorksheetViewer';
 import GeneratingProgress from './components/GeneratingProgress';
@@ -13,12 +13,10 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const lastRequestRef = useRef<WorksheetRequest | null>(null);
 
   const handleGenerate = async (req: WorksheetRequest) => {
     setError(null);
     setLoading(true);
-    lastRequestRef.current = req;
     try {
       const result = await generateWorksheet(req);
       setWorksheet(result);
@@ -43,22 +41,6 @@ export default function App() {
     }
   };
 
-  const handleViewerDownloadPdf = async (includeAnswers: boolean) => {
-    const req = lastRequestRef.current;
-    if (!req) return;
-    setError(null);
-    setPdfLoading(true);
-    try {
-      await downloadPdf(req, includeAnswers);
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : 'Failed to generate PDF. Please try again.';
-      setError(msg);
-    } finally {
-      setPdfLoading(false);
-    }
-  };
-
-  const handlePrint = () => window.print();
   const handleReset = () => setWorksheet(null);
 
   return (
@@ -139,10 +121,7 @@ export default function App() {
             )}
             <WorksheetViewer
               worksheet={worksheet}
-              onPrint={handlePrint}
               onReset={handleReset}
-              onDownloadPdf={handleViewerDownloadPdf}
-              pdfLoading={pdfLoading}
             />
           </>
         )}

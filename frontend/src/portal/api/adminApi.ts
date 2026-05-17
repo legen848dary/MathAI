@@ -89,3 +89,22 @@ export async function getSettings(): Promise<SettingsResponse> {
 export async function setAiProvider(provider: string): Promise<void> {
   await api.put('/settings/ai-provider', { provider });
 }
+
+export interface AnalyticsOverview {
+  totalAllTime: number;
+  totalToday: number;
+  successRate: number;
+  succeededToday: number;
+  failedToday: number;
+  avgTimeSec: number;
+  p50Sec: number;
+  p95Sec: number;
+  popularGrades: { grade: number; count: number }[];
+  popularTopics: { topic: string; count: number }[];
+  providerSplit: { provider: string; count: number }[];
+}
+
+export async function getAnalytics(): Promise<AnalyticsOverview> {
+  const { data } = await api.get('/analytics');
+  return data;
+}

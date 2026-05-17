@@ -3,6 +3,7 @@ import AdminLogin from './AdminLogin';
 import AdminTwoFactor from './AdminTwoFactor';
 import AdminOverview from './AdminOverview';
 import AdminSettings from './AdminSettings';
+import AdminAnalytics from './AdminAnalytics';
 import { useAdminAuth } from './hooks/useAdminAuth';
 import type { LoginResponse } from './api/adminApi';
 
@@ -10,7 +11,8 @@ type Screen =
   | { name: 'login' }
   | { name: 'two-factor'; email: string; tempToken: string }
   | { name: 'overview' }
-  | { name: 'settings' };
+  | { name: 'settings' }
+  | { name: 'analytics' };
 
 export default function AdminApp() {
   const { isAuthenticated, setToken, logout } = useAdminAuth();
@@ -55,6 +57,7 @@ export default function AdminApp() {
       return (
         <AdminOverview
           onGoToSettings={() => setScreen({ name: 'settings' })}
+          onGoToAnalytics={() => setScreen({ name: 'analytics' })}
           onLogout={handleLogout}
         />
       );
@@ -62,6 +65,13 @@ export default function AdminApp() {
     case 'settings':
       return (
         <AdminSettings
+          onGoToOverview={() => setScreen({ name: 'overview' })}
+        />
+      );
+
+    case 'analytics':
+      return (
+        <AdminAnalytics
           onGoToOverview={() => setScreen({ name: 'overview' })}
         />
       );

@@ -8,10 +8,11 @@ import type { SettingsResponse } from './api/adminApi';
 
 interface Props {
   onGoToSettings: () => void;
+  onGoToAnalytics: () => void;
   onLogout: () => void;
 }
 
-export default function AdminOverview({ onGoToSettings, onLogout }: Props) {
+export default function AdminOverview({ onGoToSettings, onGoToAnalytics, onLogout }: Props) {
   const [settings, setSettings] = useState<SettingsResponse | null>(null);
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
   const [selectedProvider, setSelectedProvider] = useState('');
@@ -72,6 +73,12 @@ export default function AdminOverview({ onGoToSettings, onLogout }: Props) {
           </div>
           <nav className="flex items-center gap-1">
             <span className="px-3 py-1.5 text-sm font-medium bg-blue-600 rounded-lg">Overview</span>
+            <button
+              onClick={onGoToAnalytics}
+              className="px-3 py-1.5 text-sm text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"
+            >
+              Analytics
+            </button>
             <button
               onClick={onGoToSettings}
               className="px-3 py-1.5 text-sm text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"

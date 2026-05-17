@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.insoftu.mathai.ai.AiProviderManager;
 import com.insoftu.mathai.ai.AiResponse;
 import com.insoftu.mathai.ai.AiServiceException;
+import com.insoftu.mathai.analytics.service.AnalyticsService;
 import com.insoftu.mathai.model.WorksheetRequest;
 import com.insoftu.mathai.model.WorksheetResponse;
 import org.slf4j.Logger;
@@ -26,11 +27,14 @@ public class WorksheetGenerationService {
 
     private final AiProviderManager aiProviderManager;
     private final ObjectMapper objectMapper;
+    private final AnalyticsService analyticsService;
     private final ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
 
-    public WorksheetGenerationService(AiProviderManager aiProviderManager, ObjectMapper objectMapper) {
+    public WorksheetGenerationService(AiProviderManager aiProviderManager, ObjectMapper objectMapper,
+                                       AnalyticsService analyticsService) {
         this.aiProviderManager = aiProviderManager;
         this.objectMapper = objectMapper;
+        this.analyticsService = analyticsService;
     }
 
     /**
@@ -40,22 +44,33 @@ public class WorksheetGenerationService {
      */
     public WorksheetResponse generateWorksheet(WorksheetRequest request) {
         var aiService = aiProviderManager.getCurrentProvider();
+        String provider = aiService.getProviderName();
         int totalQuestions = request.questionCount();
 
         log.info("Worksheet request — provider={}, grade={}, topic='{}', difficulty={}, questions={}",
-                aiService.getProviderName(), request.grade(), request.topic(),
+                provider, request.grade(), request.topic(),
                 request.difficulty(), totalQuestions);
 
         long startMs = System.currentTimeMillis();
 
         // Small worksheets: single call
         if (totalQuestions <= BATCH_SIZE) {
-            WorksheetResponse response = generateSingleBatch(aiService.getProviderName(), request, 0, totalQuestions);
-            long elapsedMs = System.currentTimeMillis() - startMs;
-            log.info("Worksheet generated — provider={}, grade={}, topic='{}', questions={}, elapsed={}ms",
-                    aiService.getProviderName(), request.grade(), request.topic(),
-                    response.questions().size(), elapsedMs);
-            return response;
+            try {
+                WorksheetResponse response = generateSingleBatch(provider, request, 0, totalQuestions);
+                long elapsedMs = System.currentTimeMillis() - startMs;
+                log.info("Worksheet generated — provider={}, grade={}, topic='{}', questions={}, elapsed={}ms",
+                        provider, request.grade(), request.topic(),
+                        response.questions().size(), elapsedMs);
+                analyticsService.recordGeneration(provider, request.grade(), request.topic(),
+                        request.difficulty(), totalQuestions, true, elapsedMs, null, 1);
+                return response;
+            } catch (Exception e) {
+                long elapsedMs = System.currentTimeMillis() - startMs;
+                analyticsService.recordGeneration(provider, request.grade(), request.topic(),
+                        request.difficulty(), totalQuestions, false, elapsedMs,
+                        e.getClass().getSimpleName(), 1);
+                throw e;
+            }
         }
 
         // Larger worksheets: parallel batches
@@ -68,7 +83,7 @@ public class WorksheetGenerationService {
             final int bi = batchIndex;
 
             CompletableFuture<WorksheetResponse> future = CompletableFuture.supplyAsync(() ->
-                    generateSingleBatch(aiService.getProviderName(), request, startQuestion, batchQuestionCount),
+                    generateSingleBatch(provider, request, startQuestion, batchQuestionCount),
                     executor);
             futures.add(future);
         }
@@ -80,7 +95,11 @@ public class WorksheetGenerationService {
                     .map(CompletableFuture::join)
                     .toList();
         } catch (Exception e) {
+            long elapsedMs = System.currentTimeMillis() - startMs;
             Throwable cause = e.getCause() != null ? e.getCause() : e;
+            analyticsService.recordGeneration(provider, request.grade(), request.topic(),
+                    request.difficulty(), totalQuestions, false, elapsedMs,
+                    cause.getClass().getSimpleName(), batchCount);
             throw new AiServiceException("Parallel generation failed: " + cause.getMessage(), cause);
         }
 
@@ -88,8 +107,11 @@ public class WorksheetGenerationService {
 
         long elapsedMs = System.currentTimeMillis() - startMs;
         log.info("Worksheet generated ({} batches) — provider={}, grade={}, topic='{}', questions={}, elapsed={}ms",
-                batchCount, aiService.getProviderName(), request.grade(), request.topic(),
+                batchCount, provider, request.grade(), request.topic(),
                 merged.questions().size(), elapsedMs);
+
+        analyticsService.recordGeneration(provider, request.grade(), request.topic(),
+                request.difficulty(), totalQuestions, true, elapsedMs, null, batchCount);
 
         return merged;
     }

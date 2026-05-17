@@ -89,7 +89,8 @@ info "STEP 3/3 — DB backup → rebuild & restart on droplet..."
 echo "  (This takes ~2 min on code changes, ~5 min if base images changed)"
 echo ""
 
-ssh -o StrictHostKeyChecking=no "${DROPLET_USER}@${DROPLET_IP}" bash << 'REMOTE'
+ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=10 "${DROPLET_USER}@${DROPLET_IP}" bash << 'REMOTE'
+set -e
 cd /opt/mathai
 
 # Ensure log directory exists on the host

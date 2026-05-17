@@ -128,21 +128,38 @@ public class WorksheetGenerationService {
 
         AiResponse aiResponse = aiService.generateContent(systemPrompt, userPrompt, MAX_TOKENS_PER_BATCH, 0.7);
 
-        // Retry with fewer questions if truncated
+        // Retry with fewer questions if truncated (explicit flag from AI provider)
         if (aiResponse.truncated()) {
-            int reduced = Math.max(1, batchSize - 2);
-            log.warn("AI batch truncated (start={}). Retrying with {} questions.", startQuestion + 1, reduced);
-            String reducedPrompt = buildUserPrompt(request, startQuestion, reduced);
+            batchSize = retryTruncated(systemPrompt, request, startQuestion, batchSize);
+            String reducedPrompt = buildUserPrompt(request, startQuestion, batchSize);
             aiResponse = aiService.generateContent(systemPrompt, reducedPrompt, MAX_TOKENS_PER_BATCH, 0.7);
-            if (aiResponse.truncated()) {
-                throw new AiServiceException(
-                    "Response was truncated even after reducing batch size. " +
-                    "Please try again with fewer questions or a simpler topic.");
-            }
-            batchSize = reduced;
         }
 
-        return parseResponse(aiResponse.text(), request, startQuestion, batchSize);
+        // Parse; if JSON is structurally broken (e.g. mid-string cutoff that the AI provider
+        // didn't flag with a finishReason), retry once with fewer questions.
+        try {
+            return parseResponse(aiResponse.text(), request, startQuestion, batchSize);
+        } catch (AiServiceException parseError) {
+            if (aiResponse.truncated()) {
+                throw parseError; // already retried above via explicit flag
+            }
+            int reduced = Math.max(1, batchSize - 2);
+            if (reduced >= batchSize) {
+                throw parseError; // already at minimum
+            }
+            log.warn("AI batch had broken JSON (start={}), retrying with {} questions. Error: {}",
+                    startQuestion + 1, reduced, parseError.getMessage());
+            String reducedPrompt = buildUserPrompt(request, startQuestion, reduced);
+            aiResponse = aiService.generateContent(systemPrompt, reducedPrompt, MAX_TOKENS_PER_BATCH, 0.7);
+            return parseResponse(aiResponse.text(), request, startQuestion, reduced);
+        }
+    }
+
+    private int retryTruncated(String systemPrompt, WorksheetRequest request,
+                                int startQuestion, int batchSize) {
+        int reduced = Math.max(1, batchSize - 2);
+        log.warn("AI batch truncated (start={}). Retrying with {} questions.", startQuestion + 1, reduced);
+        return reduced;
     }
 
     private String buildUserPrompt(WorksheetRequest request, int startQuestion, int batchSize) {
@@ -208,49 +225,101 @@ public class WorksheetGenerationService {
 
     private WorksheetResponse parseResponse(String jsonText, WorksheetRequest request,
                                              int startQuestion, int batchSize) {
-        try {
-            String cleaned = jsonText.strip();
-            if (cleaned.startsWith("```")) {
-                cleaned = cleaned.replaceAll("^```[a-z]*\\n?", "").replaceAll("```$", "").strip();
-            }
-
-            cleaned = sanitiseJsonControlChars(cleaned);
-
-            JsonNode node = objectMapper.readTree(cleaned);
-
-            String title = node.path("title").asText("IB Math Worksheet");
-            String instructions = node.path("instructions").asText("Answer all questions. Show your working.");
-
-            List<WorksheetResponse.Question> questions = new ArrayList<>();
-            JsonNode questionsNode = node.path("questions");
-            for (JsonNode q : questionsNode) {
-                String diagram = q.hasNonNull("diagram") ? q.path("diagram").asText(null) : null;
-                questions.add(new WorksheetResponse.Question(
-                        q.path("number").asInt(questions.size() + 1),
-                        q.path("text").asText(),
-                        q.path("hint").asText(""),
-                        diagram
-                ));
-            }
-
-            List<String> answerKey = new ArrayList<>();
-            JsonNode answersNode = node.path("answerKey");
-            for (JsonNode a : answersNode) {
-                answerKey.add(a.asText());
-            }
-
-            return new WorksheetResponse(
-                    title,
-                    "Grade " + request.grade(),
-                    request.topic(),
-                    request.difficulty(),
-                    instructions,
-                    questions,
-                    answerKey
-            );
-        } catch (Exception e) {
-            throw new AiServiceException("Failed to parse worksheet JSON: " + e.getMessage(), e);
+        String cleaned = jsonText.strip();
+        if (cleaned.startsWith("```")) {
+            cleaned = cleaned.replaceAll("^```[a-z]*\\n?", "").replaceAll("```$", "").strip();
         }
+        cleaned = sanitiseJsonControlChars(cleaned);
+
+        try {
+            return parseWorksheet(cleaned, request);
+        } catch (AiServiceException e) {
+            throw e;
+        } catch (Exception firstError) {
+            // Try JSON recovery for truncated responses (missing closing quotes/brackets)
+            String recovered = recoverTruncatedJson(cleaned);
+            if (!recovered.equals(cleaned)) {
+                try {
+                    log.warn("Attempting JSON recovery — original parse failed: {}", firstError.getMessage());
+                    return parseWorksheet(recovered, request);
+                } catch (Exception ignored) {
+                    // recovery didn't help, fall through to original error
+                }
+            }
+            throw new AiServiceException("Failed to parse worksheet JSON: " + firstError.getMessage(), firstError);
+        }
+    }
+
+    /**
+     * Attempts to recover a truncated JSON string by closing any unclosed quotes,
+     * arrays, and objects. Best-effort — if the JSON is too broken, the original
+     * exception propagates.
+     */
+    private static String recoverTruncatedJson(String raw) {
+        StringBuilder sb = new StringBuilder(raw);
+        boolean inString = false;
+        boolean escaped = false;
+        int braceDepth = 0;
+        int bracketDepth = 0;
+
+        for (int i = 0; i < sb.length(); i++) {
+            char c = sb.charAt(i);
+            if (escaped) { escaped = false; continue; }
+            if (c == '\\' && inString) { escaped = true; continue; }
+            if (c == '"') { inString = !inString; continue; }
+            if (!inString) {
+                switch (c) {
+                    case '{' -> braceDepth++;
+                    case '}' -> braceDepth--;
+                    case '[' -> bracketDepth++;
+                    case ']' -> bracketDepth--;
+                }
+            }
+        }
+
+        // If still inside a string, close it
+        if (inString) sb.append('"');
+        // Close any open arrays
+        while (bracketDepth > 0) { sb.append(']'); bracketDepth--; }
+        // Close any open objects
+        while (braceDepth > 0) { sb.append('}'); braceDepth--; }
+
+        return sb.toString();
+    }
+
+    private WorksheetResponse parseWorksheet(String cleaned, WorksheetRequest request) throws Exception {
+        JsonNode node = objectMapper.readTree(cleaned);
+
+        String title = node.path("title").asText("IB Math Worksheet");
+        String instructions = node.path("instructions").asText("Answer all questions. Show your working.");
+
+        List<WorksheetResponse.Question> questions = new ArrayList<>();
+        JsonNode questionsNode = node.path("questions");
+        for (JsonNode q : questionsNode) {
+            String diagram = q.hasNonNull("diagram") ? q.path("diagram").asText(null) : null;
+            questions.add(new WorksheetResponse.Question(
+                    q.path("number").asInt(questions.size() + 1),
+                    q.path("text").asText(),
+                    q.path("hint").asText(""),
+                    diagram
+            ));
+        }
+
+        List<String> answerKey = new ArrayList<>();
+        JsonNode answersNode = node.path("answerKey");
+        for (JsonNode a : answersNode) {
+            answerKey.add(a.asText());
+        }
+
+        return new WorksheetResponse(
+                title,
+                "Grade " + request.grade(),
+                request.topic(),
+                request.difficulty(),
+                instructions,
+                questions,
+                answerKey
+        );
     }
 
     /**

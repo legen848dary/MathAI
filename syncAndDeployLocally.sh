@@ -71,6 +71,31 @@ echo ""
 mkdir -p "$SCRIPT_DIR/logs"
 
 info "Stopping any existing local containers…"
+# ── Save current images for potential rollback ─────────────────────────────
+echo ""
+info "Tagging current images for rollback safety..."
+CONTAINER_ID=$(docker compose ps -q backend 2>/dev/null)
+if [ -n "$CONTAINER_ID" ]; then
+  IMAGE_ID=$(docker container inspect "$CONTAINER_ID" --format='{{.Image}}' 2>/dev/null || true)
+  [ -n "$IMAGE_ID" ] && docker tag "$IMAGE_ID" mathai-backend:rollback 2>/dev/null || true
+fi
+CONTAINER_ID=$(docker compose ps -q frontend 2>/dev/null)
+if [ -n "$CONTAINER_ID" ]; then
+  IMAGE_ID=$(docker container inspect "$CONTAINER_ID" --format='{{.Image}}' 2>/dev/null || true)
+  [ -n "$IMAGE_ID" ] && docker tag "$IMAGE_ID" mathai-frontend:rollback 2>/dev/null || true
+fi
+success "Rollback tags saved."
+# ── Pre-upgrade DB backup ──────────────────────────────────────────────────
+if docker compose ps -q db > /dev/null 2>&1; then
+  echo ""
+  info "Backing up database before upgrade..."
+  if bash "$SCRIPT_DIR/scripts/backup.sh" pre-upgrade 2>/dev/null; then
+    success "Pre-upgrade backup complete."
+  else
+    warn "Backup failed — proceeding without backup."
+  fi
+fi
+echo ""
 docker compose down --remove-orphans 2>/dev/null || true
 echo ""
 
@@ -95,11 +120,44 @@ for i in $(seq 1 30); do
   if curl -sf http://localhost:8080/actuator/health > /dev/null 2>&1; then
     echo ""
     success "Backend is healthy."
+    HEALTHY=1
     break
   fi
   printf "."
   sleep 5
 done
+echo ""
+
+if [[ -n "$HEALTHY" ]]; then
+  info "Cleaning up old rollback tags..."
+  docker rmi mathai-backend:rollback 2>/dev/null || true
+  docker rmi mathai-frontend:rollback 2>/dev/null || true
+  success "Rollback tags cleaned."
+else
+  warn "Rollback tags preserved — backend health check timed out."
+  warn "If the deploy is broken, run: ./scripts/rollback.sh"
+fi
+
+# ── Housekeeping ────────────────────────────────────────────────────────────
+echo ""
+info "Housekeeping..."
+
+# Rotate backups: keep last 10
+BACKUP_COUNT=$(ls -1 "$SCRIPT_DIR/backups"/*.sql.gz 2>/dev/null | wc -l)
+if [ "$BACKUP_COUNT" -gt 10 ]; then
+  TO_DELETE=$((BACKUP_COUNT - 10))
+  echo "  → Rotating backups: removing $TO_DELETE old file(s)..."
+  ls -1t "$SCRIPT_DIR/backups"/*.sql.gz | tail -n "$TO_DELETE" | xargs rm -f
+  echo "  ✔ Kept 10 most recent backups."
+fi
+
+echo "  → Pruning dangling Docker images..."
+docker image prune -f 2>&1 | tail -1
+
+echo "  → Pruning Docker build cache..."
+docker builder prune -f --reserved-space=2GB 2>&1 || \
+  docker builder prune -f --keep-storage=2GB 2>&1 || \
+  docker builder prune -f 2>&1 | tail -1
 echo ""
 
 info "Container status:"

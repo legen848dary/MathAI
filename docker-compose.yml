@@ -6,7 +6,7 @@ services:
       POSTGRES_USER: mathai
       POSTGRES_PASSWORD: ${DB_PASSWORD:-mathai_secret}
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - mathai-db-data:/var/lib/postgresql/data
     restart: unless-stopped
@@ -21,6 +21,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    image: mathai-backend:current
     environment:
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - GEMINI_MODEL=${GEMINI_MODEL:-gemini-2.5-flash}
@@ -50,6 +51,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+    image: mathai-frontend:current
     ports:
       - "8081:80"
     volumes:

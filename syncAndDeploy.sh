@@ -85,7 +85,7 @@ echo ""
 # ─────────────────────────────────────────────────────────────────────────────
 # STEP 3 — SSH → docker compose build & restart
 # ─────────────────────────────────────────────────────────────────────────────
-info "STEP 3/3 — Building & restarting containers on droplet..."
+info "STEP 3/3 — DB backup → rebuild & restart on droplet..."
 echo "  (This takes ~2 min on code changes, ~5 min if base images changed)"
 echo ""
 
@@ -103,6 +103,38 @@ if ! docker ps >/dev/null 2>&1; then
   echo "    Then log out and back in."
   exit 1
 fi
+
+# ── Pre-upgrade DB backup ──────────────────────────────────────────────────
+echo ""
+echo "  >>> Backing up database before upgrade..."
+mkdir -p /opt/mathai/backups
+TIMESTAMP=$(date '+%Y-%m-%d-%H%M%S')
+BACKUP_FILE="/opt/mathai/backups/mathai-${TIMESTAMP}-pre-upgrade.sql"
+if docker compose ps -q db > /dev/null 2>&1; then
+  if docker compose exec -T db pg_dump -U mathai -d mathai --clean --if-exists > "$BACKUP_FILE" 2>/dev/null; then
+    gzip -f "$BACKUP_FILE"
+    echo "  ✔ Backup saved: ${BACKUP_FILE}.gz ($(du -h ${BACKUP_FILE}.gz | cut -f1))"
+  else
+    echo "  ⚠ WARNING: pg_dump failed — proceeding without backup."
+  fi
+else
+  echo "  ⚠ DB container not running — skipping backup."
+fi
+echo ""
+
+echo ""
+echo "  >>> Saving current images for rollback..."
+CONTAINER_ID=$(docker compose ps -q backend 2>/dev/null)
+if [ -n "$CONTAINER_ID" ]; then
+  IMAGE_ID=$(docker container inspect "$CONTAINER_ID" --format='{{.Image}}' 2>/dev/null || true)
+  [ -n "$IMAGE_ID" ] && docker tag "$IMAGE_ID" mathai-backend:rollback 2>/dev/null || true
+fi
+CONTAINER_ID=$(docker compose ps -q frontend 2>/dev/null)
+if [ -n "$CONTAINER_ID" ]; then
+  IMAGE_ID=$(docker container inspect "$CONTAINER_ID" --format='{{.Image}}' 2>/dev/null || true)
+  [ -n "$IMAGE_ID" ] && docker tag "$IMAGE_ID" mathai-frontend:rollback 2>/dev/null || true
+fi
+echo "  ✔ Rollback tags saved."
 
 echo "  >>> docker compose down --remove-orphans"
 docker compose down --remove-orphans 2>&1 || echo "  (down had issues, continuing...)"
@@ -132,6 +164,40 @@ if [ "$HEALTHY" -eq 0 ]; then
 fi
 echo ""
 
+if [ "$HEALTHY" -eq 1 ]; then
+  echo "  >>> Cleaning up old rollback tags..."
+  docker rmi mathai-backend:rollback 2>/dev/null || true
+  docker rmi mathai-frontend:rollback 2>/dev/null || true
+  echo "  ✔ Rollback tags cleaned."
+else
+  echo "  ⚠ Rollback tags preserved — backend health check timed out."
+  echo "    If the deploy is broken, run: bash /opt/mathai/scripts/droplet/rollback.sh"
+fi
+
+# ── Housekeeping ────────────────────────────────────────────────────────────
+echo "  >>> Housekeeping..."
+echo ""
+
+# Rotate backups: keep last 10, delete older
+BACKUP_COUNT=$(ls -1 /opt/mathai/backups/*.sql.gz 2>/dev/null | wc -l)
+if [ "$BACKUP_COUNT" -gt 10 ]; then
+  TO_DELETE=$((BACKUP_COUNT - 10))
+  echo "  → Rotating backups: removing $TO_DELETE old file(s)..."
+  ls -1t /opt/mathai/backups/*.sql.gz | tail -n "$TO_DELETE" | xargs rm -f
+  echo "  ✔ Kept 10 most recent backups."
+fi
+
+# Prune dangling images from rebuilds
+echo "  → Pruning dangling Docker images..."
+docker image prune -f 2>&1 | tail -1
+
+# Prune build cache (keep up to 2 GB)
+echo "  → Pruning Docker build cache..."
+docker builder prune -f --reserved-space=2GB 2>&1 || \
+  docker builder prune -f --keep-storage=2GB 2>&1 || \
+  docker builder prune -f 2>&1 | tail -1
+
+echo ""
 echo "  >>> Container status:"
 docker compose ps 2>&1
 REMOTE

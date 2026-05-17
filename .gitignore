@@ -49,3 +49,4 @@ frontend/dist/
 gitsetup.py
 gitsetup.log
 *.log
+backups/

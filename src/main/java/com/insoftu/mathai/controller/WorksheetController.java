@@ -47,9 +47,10 @@ public class WorksheetController {
      * Generates a worksheet and returns it directly as a downloadable PDF.
      */
     @PostMapping("/worksheet/pdf")
-    public ResponseEntity<byte[]> generatePdf(@Valid @RequestBody WorksheetRequest request) {
+    public ResponseEntity<byte[]> generatePdf(@Valid @RequestBody WorksheetRequest request,
+                                              @RequestParam(defaultValue = "true") boolean includeAnswers) {
         WorksheetResponse worksheet = worksheetGenerationService.generateWorksheet(request);
-        byte[] pdf = pdfService.generatePdf(worksheet);
+        byte[] pdf = pdfService.generatePdf(worksheet, includeAnswers);
 
         String timestamp = java.time.LocalDateTime.now()
                 .format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));

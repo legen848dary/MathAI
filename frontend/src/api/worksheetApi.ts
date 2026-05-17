@@ -25,9 +25,12 @@ export async function generateWorksheet(req: WorksheetRequest): Promise<Workshee
   }
 }
 
-export async function downloadPdf(req: WorksheetRequest): Promise<void> {
+export async function downloadPdf(req: WorksheetRequest, includeAnswers: boolean = true): Promise<void> {
   try {
-    const res = await axios.post(`${BASE}/worksheet/pdf`, req, { responseType: 'blob' });
+    const res = await axios.post(`${BASE}/worksheet/pdf`, req, {
+      responseType: 'blob',
+      params: { includeAnswers },
+    });
 
     // Prefer the filename the backend sets in Content-Disposition (includes timestamp).
     // Fall back to a client-generated name only if the header is absent.

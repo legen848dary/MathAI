@@ -22,7 +22,7 @@ public class PdfService {
     private static final Font HINT_FONT = new Font(Font.HELVETICA, 9, Font.ITALIC, new Color(100, 116, 139));
     private static final Font ANSWER_FONT = new Font(Font.HELVETICA, 10, Font.NORMAL, new Color(30, 41, 59));
 
-    public byte[] generatePdf(WorksheetResponse worksheet) {
+    public byte[] generatePdf(WorksheetResponse worksheet, boolean includeAnswers) {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         Document document = new Document(PageSize.A4, 50, 50, 60, 60);
 
@@ -47,9 +47,11 @@ public class PdfService {
                 addQuestion(document, q);
             }
 
-            // ── Answer Key (new page) ────────────────────────────────────────────
-            document.newPage();
-            addAnswerKey(document, worksheet);
+            // ── Answer Key (new page, only when requested) ────────────────────────
+            if (includeAnswers) {
+                document.newPage();
+                addAnswerKey(document, worksheet);
+            }
 
         } catch (Exception e) {
             throw new RuntimeException("PDF generation failed: " + e.getMessage(), e);

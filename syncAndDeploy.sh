@@ -14,17 +14,18 @@ DROPLET_USER="ubuntu"
 REMOTE_DIR="/opt/mathai"
 SCRIPT_DIR="$(cd "$(dirname "${0:A}")" && pwd)"   # project root (absolute, symlink-safe)
 
-# ── Colours ──────────────────────────────────────────────────────────────────
+# ── Colours & timestamps ─────────────────────────────────────────────────────
 GREEN="\033[0;32m"; YELLOW="\033[1;33m"; RED="\033[0;31m"; CYAN="\033[0;36m"; NC="\033[0m"
-info()    { echo "${CYAN}▶ $*${NC}"; }
-success() { echo "${GREEN}✔ $*${NC}"; }
-warn()    { echo "${YELLOW}⚠ $*${NC}"; }
-error()   { echo "${RED}✖ $*${NC}"; exit 1; }
+ts()     { TZ='Asia/Hong_Kong' date '+%H:%M:%S'; }
+info()   { echo "$(ts)  ${CYAN}▶ $*${NC}"; }
+success(){ echo "$(ts)  ${GREEN}✔ $*${NC}"; }
+warn()   { echo "$(ts)  ${YELLOW}⚠ $*${NC}"; }
+error()  { echo "$(ts)  ${RED}✖ $*${NC}"; exit 1; }
 
 echo ""
-echo "══════════════════════════════════════════════════"
-echo "   MathAI — Sync & Deploy to ${DROPLET_IP}"
-echo "══════════════════════════════════════════════════"
+echo "$(ts)  ══════════════════════════════════════════════════"
+echo "$(ts)     MathAI — Sync & Deploy to ${DROPLET_IP}"
+echo "$(ts)  ══════════════════════════════════════════════════"
 echo ""
 
 cd "$SCRIPT_DIR"
@@ -93,38 +94,41 @@ ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=10 "${DROPLET_USER}@${DRO
 set -e
 cd /opt/mathai
 
+# ── Timestamp helper (HKT) ──────────────────────────────────────────────────
+ts() { TZ='Asia/Hong_Kong' date '+%H:%M:%S'; }
+
 # Ensure log directory exists on the host
 mkdir -p /home/ubuntu/logs 2>/dev/null || mkdir -p /tmp/logs 2>/dev/null || true
 export LOG_DIR=$( [ -d /home/ubuntu/logs ] && echo /home/ubuntu/logs || echo /tmp/logs )
 
 # Check docker access
 if ! docker ps >/dev/null 2>&1; then
-  echo "  ✖ ERROR: docker not accessible. Is ${USER} in the docker group?"
-  echo "    Run as root: usermod -aG docker ubuntu"
-  echo "    Then log out and back in."
+  echo "$(ts)  ✖ ERROR: docker not accessible. Is ${USER} in the docker group?"
+  echo "$(ts)    Run as root: usermod -aG docker ubuntu"
+  echo "$(ts)    Then log out and back in."
   exit 1
 fi
 
 # ── Pre-upgrade DB backup ──────────────────────────────────────────────────
 echo ""
-echo "  >>> Backing up database before upgrade..."
+echo "$(ts)  >>> Backing up database before upgrade..."
 mkdir -p /opt/mathai/backups
-TIMESTAMP=$(date '+%Y-%m-%d-%H%M%S')
+TIMESTAMP=$(TZ='Asia/Hong_Kong' date '+%Y-%m-%d-%H%M%S')
 BACKUP_FILE="/opt/mathai/backups/mathai-${TIMESTAMP}-pre-upgrade.sql"
 if docker compose ps -q db > /dev/null 2>&1; then
   if docker compose exec -T db pg_dump -U mathai -d mathai --clean --if-exists > "$BACKUP_FILE" 2>/dev/null; then
     gzip -f "$BACKUP_FILE"
-    echo "  ✔ Backup saved: ${BACKUP_FILE}.gz ($(du -h ${BACKUP_FILE}.gz | cut -f1))"
+    echo "$(ts)  ✔ Backup saved: ${BACKUP_FILE}.gz ($(du -h ${BACKUP_FILE}.gz | cut -f1))"
   else
-    echo "  ⚠ WARNING: pg_dump failed — proceeding without backup."
+    echo "$(ts)  ⚠ WARNING: pg_dump failed — proceeding without backup."
   fi
 else
-  echo "  ⚠ DB container not running — skipping backup."
+  echo "$(ts)  ⚠ DB container not running — skipping backup."
 fi
 echo ""
 
 echo ""
-echo "  >>> Saving current images for rollback..."
+echo "$(ts)  >>> Saving current images for rollback..."
 CONTAINER_ID=$(docker compose ps -q backend 2>/dev/null)
 if [ -n "$CONTAINER_ID" ]; then
   IMAGE_ID=$(docker container inspect "$CONTAINER_ID" --format='{{.Image}}' 2>/dev/null || true)
@@ -135,23 +139,24 @@ if [ -n "$CONTAINER_ID" ]; then
   IMAGE_ID=$(docker container inspect "$CONTAINER_ID" --format='{{.Image}}' 2>/dev/null || true)
   [ -n "$IMAGE_ID" ] && docker tag "$IMAGE_ID" mathai-frontend:rollback 2>/dev/null || true
 fi
-echo "  ✔ Rollback tags saved."
+echo "$(ts)  ✔ Rollback tags saved."
 
-echo "  >>> docker compose down --remove-orphans"
-docker compose down --remove-orphans 2>&1 || echo "  (down had issues, continuing...)"
+echo "$(ts)  >>> docker compose down --remove-orphans"
+docker compose down --remove-orphans || echo "$(ts)  (down had issues, continuing...)"
 
-echo "  >>> docker compose up -d --build  (this is the rebuild step)"
-if ! docker compose up -d --build 2>&1; then
-  echo "  ✖ ERROR: docker compose up failed. Check the output above."
+echo "$(ts)  >>> docker compose up -d --build  (this is the rebuild step)"
+if ! docker compose up -d --build; then
+  echo "$(ts)  ✖ ERROR: docker compose up failed. Check the output above."
   exit 1
 fi
+echo "$(ts)  >>> docker compose up completed."
 
 echo ""
-echo "  >>> Waiting for backend to be healthy..."
+echo "$(ts)  >>> Waiting for backend to be healthy..."
 HEALTHY=0
 for i in $(seq 1 24); do
   if docker compose ps backend 2>/dev/null | grep -q "healthy"; then
-    echo "  >>> Backend is healthy."
+    echo "$(ts)  >>> Backend is healthy."
     HEALTHY=1
     break
   fi
@@ -160,60 +165,61 @@ for i in $(seq 1 24); do
 done
 if [ "$HEALTHY" -eq 0 ]; then
   echo ""
-  echo "  ✖ WARNING: Backend did not become healthy within 120s."
-  echo "  Check logs: docker compose logs backend --tail 50"
+  echo "$(ts)  ✖ WARNING: Backend did not become healthy within 120s."
+  echo "$(ts)  Check logs: docker compose logs backend --tail 50"
 fi
 echo ""
 
 if [ "$HEALTHY" -eq 1 ]; then
-  echo "  >>> Cleaning up old rollback tags..."
+  echo "$(ts)  >>> Cleaning up old rollback tags..."
   docker rmi mathai-backend:rollback 2>/dev/null || true
   docker rmi mathai-frontend:rollback 2>/dev/null || true
-  echo "  ✔ Rollback tags cleaned."
+  echo "$(ts)  ✔ Rollback tags cleaned."
 else
-  echo "  ⚠ Rollback tags preserved — backend health check timed out."
-  echo "    If the deploy is broken, run: bash /opt/mathai/scripts/droplet/rollback.sh"
+  echo "$(ts)  ⚠ Rollback tags preserved — backend health check timed out."
+  echo "$(ts)    If the deploy is broken, run: bash /opt/mathai/scripts/droplet/rollback.sh"
 fi
 
 # ── Housekeeping ────────────────────────────────────────────────────────────
-echo "  >>> Housekeeping..."
+echo "$(ts)  >>> Housekeeping..."
 echo ""
 
 # Rotate backups: keep last 10, delete older
 BACKUP_COUNT=$(ls -1 /opt/mathai/backups/*.sql.gz 2>/dev/null | wc -l)
 if [ "$BACKUP_COUNT" -gt 10 ]; then
   TO_DELETE=$((BACKUP_COUNT - 10))
-  echo "  → Rotating backups: removing $TO_DELETE old file(s)..."
+  echo "$(ts)  → Rotating backups: removing $TO_DELETE old file(s)..."
   ls -1t /opt/mathai/backups/*.sql.gz | tail -n "$TO_DELETE" | xargs rm -f
-  echo "  ✔ Kept 10 most recent backups."
+  echo "$(ts)  ✔ Kept 10 most recent backups."
 fi
 
 # Prune dangling images from rebuilds
-echo "  → Pruning dangling Docker images..."
+echo "$(ts)  → Pruning dangling Docker images..."
 docker image prune -f 2>&1 | tail -1
 
 # Prune build cache (keep up to 2 GB)
-echo "  → Pruning Docker build cache..."
+echo "$(ts)  → Pruning Docker build cache..."
 docker builder prune -f --reserved-space=2GB 2>&1 || \
   docker builder prune -f --keep-storage=2GB 2>&1 || \
   docker builder prune -f 2>&1 | tail -1
 
 echo ""
-echo "  >>> Container status:"
+echo "$(ts)  >>> Container status:"
 docker compose ps 2>&1
+echo "$(ts)  >>> Remote script completed."
 REMOTE
 
 echo ""
-echo "══════════════════════════════════════════════════"
+echo "$(ts)  ══════════════════════════════════════════════════"
 success "  Deployment complete!"
 echo ""
-echo "  🌐  https://mathai.insoftu.com"
-echo "  🔐  https://mathai.insoftu.com/portal/ops-login  ← Admin Portal"
+echo "$(ts)  🌐  https://mathai.insoftu.com"
+echo "$(ts)  🔐  https://mathai.insoftu.com/portal/ops-login  ← Admin Portal"
 echo ""
-echo "  Useful commands on the droplet:"
-echo "    ssh ${DROPLET_USER}@${DROPLET_IP}"
-echo "    bash ${REMOTE_DIR}/scripts/droplet/logs.sh"
-echo "    bash ${REMOTE_DIR}/scripts/droplet/restart.sh"
-echo "══════════════════════════════════════════════════"
+echo "$(ts)  Useful commands on the droplet:"
+echo "$(ts)    ssh ${DROPLET_USER}@${DROPLET_IP}"
+echo "$(ts)    bash ${REMOTE_DIR}/scripts/droplet/logs.sh"
+echo "$(ts)    bash ${REMOTE_DIR}/scripts/droplet/restart.sh"
+echo "$(ts)  ══════════════════════════════════════════════════"
 echo ""
 
